@@ -2,7 +2,8 @@ import os
 import json
 import tempfile
 import logging
-from flask import Flask, request, render_template, jsonify, send_file
+import datetime
+from flask import Flask, request, render_template, jsonify, send_file, url_for
 from google.cloud import speech
 from google.cloud import storage
 from google.cloud import texttospeech
@@ -21,29 +22,45 @@ BUCKET_NAME = os.environ.get('BUCKET_NAME', 'strawberry-cupcake-files')
 storage_client = storage.Client()
 
 def get_or_create_bucket(bucket_name):
+    """Obtiene un bucket existente o crea uno nuevo."""
     try:
-        bucket = storage_client.get_bucket(bucket_name)
-        logger.info(f"Connected to bucket: {bucket_name}")
-    except exceptions.NotFound:
+        # Inicializa el cliente con autenticación implícita
+        storage_client = storage.Client()
+        
+        # Intenta obtener el bucket
         try:
-            bucket = storage_client.create_bucket(bucket_name)
-            logger.info(f"Bucket {bucket_name} created.")
-        except Exception as e:
-            logger.error(f"Error creating bucket {bucket_name}: {e}")
-            bucket = None
+            bucket = storage_client.get_bucket(bucket_name)
+            logger.info(f"Conexión exitosa con el bucket: {bucket_name}")
+            return bucket
+        except exceptions.NotFound:
+            # El bucket no existe, intenta crearlo
+            logger.info(f"Bucket {bucket_name} no encontrado, intentando crearlo...")
+            try:
+                bucket = storage_client.create_bucket(bucket_name, location="us-central1")
+                logger.info(f"Bucket {bucket_name} creado exitosamente.")
+                return bucket
+            except Exception as e:
+                logger.error(f"Error al crear el bucket {bucket_name}: {str(e)}")
+                return None
     except Exception as e:
-        logger.error(f"Error accessing bucket {bucket_name}: {e}")
-        bucket = None
-    return bucket
+        logger.error(f"Error al inicializar conexión con Storage: {str(e)}")
+        return None
 
 bucket = get_or_create_bucket(BUCKET_NAME)
 
-# Create uploads folder for local testing (still needed for temporary files)
+# Create uploads folder for local testing
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # Maximum file size (20MB)
 app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024
+
+# Allowed audio file extensions
+ALLOWED_EXTENSIONS = {'wav', 'mp3', 'm4a', 'opus', 'webm', 'ogg'}
+
+def allowed_file(filename):
+    """Check if file extension is allowed"""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # Load Spanish Dictionary for pronunciation assessment
 def load_dictionary():
@@ -58,10 +75,13 @@ def load_dictionary():
             # If local file not found, try to load from Cloud Storage
             if bucket:
                 blob = bucket.blob('es_50k.txt')
-                if blob.exists():
-                    content = blob.download_as_string().decode('utf-8')
-                    words = [line.strip().split()[0].lower() for line in content.splitlines() if line.strip()]
-                    return set(words)
+                try:
+                    if blob.exists():
+                        content = blob.download_as_string().decode('utf-8')
+                        words = [line.strip().split()[0].lower() for line in content.splitlines() if line.strip()]
+                        return set(words)
+                except exceptions.NotFound:
+                    logger.warning(f"Dictionary file not found in bucket {BUCKET_NAME}")
             # Fallback to a small built-in dictionary
             logger.warning("Could not load dictionary file. Using minimal built-in dictionary.")
             return set([
@@ -85,9 +105,12 @@ def load_references():
         except FileNotFoundError:
             if bucket:
                 blob = bucket.blob('references.json')
-                if blob.exists():
-                    content = blob.download_as_string().decode('utf-8')
-                    return json.loads(content)
+                try:
+                    if blob.exists():
+                        content = blob.download_as_string().decode('utf-8')
+                        return json.loads(content)
+                except exceptions.NotFound:
+                    logger.warning(f"References file not found in bucket {BUCKET_NAME}")
             # Default references if file not found
             return {
                 "beginner": "Hola, ¿cómo estás? Espero que estés teniendo un buen día.",
@@ -398,6 +421,7 @@ def generate_corrected_text(transcribed_text):
     """Generate grammatically corrected version of the transcribed text"""
     # This is a simplified version that just returns the transcribed text
     # In a full implementation, you would use a grammar correction model or service
+    # For now, we're just implementing some basic corrections
     
     # Simple corrections for common errors
     corrections = {
@@ -454,22 +478,37 @@ def generate_tts_feedback(text, level):
         
         # If we have a bucket, upload to Cloud Storage
         if bucket:
-            blob = bucket.blob(f"tts/{filename}")
-            blob.upload_from_bytes(response.audio_content, content_type='audio/mpeg')
-            
-            # Create a signed URL that will be valid for 1 hour
-            url = blob.generate_signed_url(
-                version="v4",
-                expiration=3600,  # 1 hour
-                method="GET"
-            )
-            return url
+            try:
+                blob = bucket.blob(f"tts/{filename}")
+                blob.upload_from_bytes(response.audio_content, content_type='audio/mpeg')
+                
+                # Create a signed URL that will be valid for 2 hours
+                url = blob.generate_signed_url(
+                    version="v4",
+                    expiration=datetime.timedelta(hours=2),
+                    method="GET"
+                )
+                logger.info(f"TTS audio generated and uploaded: {filename}")
+                return url
+            except Exception as e:
+                logger.error(f"Error uploading TTS audio to bucket: {str(e)}")
+                # Fallback to local storage if bucket upload fails
+                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')
+                temp_file.write(response.audio_content)
+                temp_file.close()
+                filename = os.path.basename(temp_file.name)
+                app.config[f'TTS_FILE_{filename}'] = temp_file.name
+                logger.info(f"TTS audio saved locally: {temp_file.name}")
+                return url_for('get_tts_audio', filename=filename)
         else:
             # Save to a temporary file and return its path
             temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')
             temp_file.write(response.audio_content)
             temp_file.close()
-            return temp_file.name
+            filename = os.path.basename(temp_file.name)
+            app.config[f'TTS_FILE_{filename}'] = temp_file.name
+            logger.info(f"TTS audio saved locally: {temp_file.name}")
+            return url_for('get_tts_audio', filename=filename)
             
     except Exception as e:
         logger.error(f"Error generating TTS: {e}")
@@ -493,7 +532,7 @@ def health():
 
 @app.route('/process-audio', methods=['POST'])
 def process_audio():
-    """Process recorded audio and provide assessment"""
+    """Process uploaded or recorded audio and provide assessment"""
     try:
         # Check if the post request has the file part
         if 'file' not in request.files:
@@ -504,6 +543,13 @@ def process_audio():
         if file.filename == '':
             logger.error("Empty filename in request")
             return jsonify({"error": "No selected file"}), 400
+        
+        if not allowed_file(file.filename):
+            logger.error(f"Invalid file type: {file.filename}")
+            return jsonify({"error": "Invalid file type. Please upload .wav, .mp3, .m4a, .opus, .webm, or .ogg"}), 400
+        
+        # Check if this is a practice mode assessment
+        practice_level = request.form.get('practice_level', None)
         
         # Process in memory
         audio_content = file.read()
@@ -523,10 +569,17 @@ def process_audio():
                 "areas_for_improvement": ["Speak clearly in Spanish", "Check your microphone"]
             })
         
-        # Free speech mode assessment
-        assessment = assess_free_speech(spoken_text)
-        corrected_text = generate_corrected_text(spoken_text)
-        logger.info(f"Free speech assessment: level={assessment['level']}, score={assessment['score']}")
+        # Calculate assessment based on mode
+        if practice_level and practice_level in REFERENCES:
+            # Practice mode with reference phrase
+            assessment = assess_practice_phrase(spoken_text, practice_level)
+            corrected_text = REFERENCES[practice_level]  # Use reference as corrected text
+            logger.info(f"Practice mode assessment: level={practice_level}, score={assessment['score']}")
+        else:
+            # Free speech mode
+            assessment = assess_free_speech(spoken_text)
+            corrected_text = generate_corrected_text(spoken_text)
+            logger.info(f"Free speech assessment: level={assessment['level']}, score={assessment['score']}")
         
         # Generate TTS feedback
         tts_url = generate_tts_feedback(corrected_text, assessment['level'])
@@ -542,6 +595,11 @@ def process_audio():
             "areas_for_improvement": assessment['areas_for_improvement'],
             "tts_audio_url": tts_url
         }
+        
+        # Add practice-specific fields if applicable
+        if practice_level and 'reference_text' in assessment:
+            response["reference_text"] = assessment['reference_text']
+            response["similarity"] = assessment['similarity']
         
         return jsonify(response)
             
