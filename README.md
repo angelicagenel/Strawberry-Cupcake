@@ -46,7 +46,7 @@ An AI-powered web application that provides feedback on Spanish pronunciation us
 3. Select "Continuously deploy from a repository"
 4. Connect to this GitHub repository
 5. Configure the build:
-   - Set the service name (e.g., "spanish-pronunciation-tool")
+   - Set the service name (e.g., "strawberry-cupcake")
    - Choose a region
    - Set authentication to "Allow unauthenticated invocations"
    - Set the environment variable `BUCKET_NAME` to a unique name for your storage bucket
@@ -59,9 +59,9 @@ An AI-powered web application that provides feedback on Spanish pronunciation us
 3. Run the following command:
 
 ```bash
-gcloud run deploy spanish-pronunciation-tool \
+gcloud run deploy strawberry-cupcake\
   --source . \
   --platform managed \
   --region us-central1 \
   --allow-unauthenticated \
-  --set-env-vars="BUCKET_NAME=upgraded-spoon-bucket"
+  --set-env-vars="BUCKET_NAME=strawberry-cupcake-files"
