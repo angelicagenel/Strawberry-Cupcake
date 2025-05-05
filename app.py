@@ -2,11 +2,11 @@ import os
 import json
 import tempfile
 import logging
-from flask import Flask, request, render_template, jsonify, send_file, url_for
+from flask import Flask, request, render_template, jsonify, send_file
 from google.cloud import speech
 from google.cloud import storage
 from google.cloud import texttospeech
-from google.api_core import exceptions  # Add proper import for exceptions
+from google.api_core import exceptions
 from fuzzywuzzy import fuzz
 import uuid
 
@@ -24,7 +24,7 @@ def get_or_create_bucket(bucket_name):
     try:
         bucket = storage_client.get_bucket(bucket_name)
         logger.info(f"Connected to bucket: {bucket_name}")
-    except exceptions.NotFound:  # Fixed exception reference
+    except exceptions.NotFound:
         try:
             bucket = storage_client.create_bucket(bucket_name)
             logger.info(f"Bucket {bucket_name} created.")
@@ -38,19 +38,12 @@ def get_or_create_bucket(bucket_name):
 
 bucket = get_or_create_bucket(BUCKET_NAME)
 
-# Create uploads folder for local testing
+# Create uploads folder for local testing (still needed for temporary files)
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # Maximum file size (20MB)
 app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024
-
-# Allowed audio file extensions
-ALLOWED_EXTENSIONS = {'wav', 'mp3', 'm4a', 'opus', 'webm', 'ogg'}
-
-def allowed_file(filename):
-    """Check if file extension is allowed"""
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # Load Spanish Dictionary for pronunciation assessment
 def load_dictionary():
@@ -405,7 +398,6 @@ def generate_corrected_text(transcribed_text):
     """Generate grammatically corrected version of the transcribed text"""
     # This is a simplified version that just returns the transcribed text
     # In a full implementation, you would use a grammar correction model or service
-    # For now, we're just implementing some basic corrections
     
     # Simple corrections for common errors
     corrections = {
@@ -477,7 +469,7 @@ def generate_tts_feedback(text, level):
             temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')
             temp_file.write(response.audio_content)
             temp_file.close()
-            return temp_file.name  # Fixed: Return the path to the temp file
+            return temp_file.name
             
     except Exception as e:
         logger.error(f"Error generating TTS: {e}")
@@ -501,7 +493,7 @@ def health():
 
 @app.route('/process-audio', methods=['POST'])
 def process_audio():
-    """Process uploaded or recorded audio and provide assessment"""
+    """Process recorded audio and provide assessment"""
     try:
         # Check if the post request has the file part
         if 'file' not in request.files:
@@ -512,13 +504,6 @@ def process_audio():
         if file.filename == '':
             logger.error("Empty filename in request")
             return jsonify({"error": "No selected file"}), 400
-        
-        if not allowed_file(file.filename):
-            logger.error(f"Invalid file type: {file.filename}")
-            return jsonify({"error": "Invalid file type. Please upload .wav, .mp3, .m4a, .opus, .webm, or .ogg"}), 400
-        
-        # Check if this is a practice mode assessment
-        practice_level = request.form.get('practice_level', None)
         
         # Process in memory
         audio_content = file.read()
@@ -538,17 +523,10 @@ def process_audio():
                 "areas_for_improvement": ["Speak clearly in Spanish", "Check your microphone"]
             })
         
-        # Calculate assessment based on mode
-        if practice_level and practice_level in REFERENCES:
-            # Practice mode with reference phrase
-            assessment = assess_practice_phrase(spoken_text, practice_level)
-            corrected_text = REFERENCES[practice_level]  # Use reference as corrected text
-            logger.info(f"Practice mode assessment: level={practice_level}, score={assessment['score']}")
-        else:
-            # Free speech mode
-            assessment = assess_free_speech(spoken_text)
-            corrected_text = generate_corrected_text(spoken_text)
-            logger.info(f"Free speech assessment: level={assessment['level']}, score={assessment['score']}")
+        # Free speech mode assessment
+        assessment = assess_free_speech(spoken_text)
+        corrected_text = generate_corrected_text(spoken_text)
+        logger.info(f"Free speech assessment: level={assessment['level']}, score={assessment['score']}")
         
         # Generate TTS feedback
         tts_url = generate_tts_feedback(corrected_text, assessment['level'])
@@ -564,11 +542,6 @@ def process_audio():
             "areas_for_improvement": assessment['areas_for_improvement'],
             "tts_audio_url": tts_url
         }
-        
-        # Add practice-specific fields if applicable
-        if practice_level and 'reference_text' in assessment:
-            response["reference_text"] = assessment['reference_text']
-            response["similarity"] = assessment['similarity']
         
         return jsonify(response)
             
