@@ -213,7 +213,7 @@
     <div class="container">
         <!-- HEADER -->
         <div class="header">
-            <h1>Spanish Pronunciation Studio🍓⋆.°</h1>
+            <h1>Spanish Pronunciation Studio 🍓⋆.</h1>
             <p class="lead mb-0">Record your Spanish speech to get detailed pronunciation feedback</p>
         </div>
 
@@ -450,6 +450,14 @@
             closePromptDisplay.addEventListener('click', function() {
                 promptDisplay.style.display = 'none';
             });
+
+            let mediaRecorder;
+            let audioChunks = [];
+            let recording = false;
+            let recordingTime = 0;
+            let timerInterval;
+            let audioURL = null;
+            let selectedAudioFile = null;
 
             // Recording
             recordButton.addEventListener('click', () => {
