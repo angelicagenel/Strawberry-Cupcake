@@ -169,31 +169,22 @@
             color: white;
         }
         
-        /* Modal for prompts */
-        .prompt-modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 1000;
-        }
-        
-        .prompt-modal-content {
+        /* Inline prompt display */
+        #promptDisplay {
             background-color: white;
-            margin: 10% auto;
-            padding: 20px;
+            border: 1px solid var(--color-secondary);
             border-radius: 10px;
-            width: 80%;
-            max-width: 600px;
+            margin-bottom: 20px;
         }
         
-        .close-modal {
-            float: right;
-            cursor: pointer;
-            font-size: 24px;
+        #promptDisplay .card-header {
+            background-color: var(--color-primary-light);
+            border-top-left-radius: 10px;
+            border-top-right-radius: 10px;
+        }
+        
+        #promptDisplay .card-body {
+            padding: 15px;
         }
         
         .example-text {
@@ -201,6 +192,7 @@
             border-radius: 5px;
             padding: 15px;
             margin-top: 10px;
+            border-left: 4px solid var(--color-accent);
         }
         
         @keyframes pulse {
@@ -234,6 +226,25 @@
                         <a href="#" class="prompt-link" data-level="beginner">Beginner</a>
                         <a href="#" class="prompt-link" data-level="intermediate">Intermediate</a>
                         <a href="#" class="prompt-link" data-level="advanced">Advanced</a>
+                    </div>
+                </div>
+                
+                <!-- NEW: Inline Prompt Display -->
+                <div id="promptDisplay" class="card mb-3" style="display: none;">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><span id="promptLevelTitle">Beginner</span> Prompt</h5>
+                        <button type="button" class="btn-close" aria-label="Close" id="closePromptDisplay"></button>
+                    </div>
+                    <div class="card-body">
+                        <p><strong id="promptTopicTitle">Topic: Introduce Yourself</strong></p>
+                        <p id="promptInstructions">Talk about yourself in Spanish. Try to include:</p>
+                        <ul id="promptList">
+                            <!-- List items will be added dynamically -->
+                        </ul>
+                        <h5>Example:</h5>
+                        <p class="example-text" id="promptExample">
+                            <!-- Example text will be added dynamically -->
+                        </p>
                     </div>
                 </div>
                 
@@ -329,79 +340,6 @@
         </div>
     </div>
 
-    <!-- Prompt Modals -->
-    <div id="beginnerPromptModal" class="prompt-modal">
-        <div class="prompt-modal-content">
-            <span class="close-modal">&times;</span>
-            <h4>Beginner Prompt</h4>
-            <p><strong>Topic: Introduce Yourself</strong></p>
-            <p>Talk about yourself in Spanish. Try to include:</p>
-            <ul>
-                <li>Your name and where you're from</li>
-                <li>Your age and occupation</li>
-                <li>What languages you speak</li>
-                <li>Your hobbies or interests</li>
-            </ul>
-            <h5>Example:</h5>
-            <p class="example-text">
-                Hola, me llamo María y soy de California. Tengo veinticinco años y soy estudiante. 
-                Hablo inglés y estoy aprendiendo español. Me gusta leer, cocinar, y pasar tiempo con mis amigos.
-            </p>
-        </div>
-    </div>
-
-    <div id="intermediatePromptModal" class="prompt-modal">
-        <div class="prompt-modal-content">
-            <span class="close-modal">&times;</span>
-            <h4>Intermediate Prompt</h4>
-            <p><strong>Topic: Describe Your Day</strong></p>
-            <p>Talk about your typical day or what you did yesterday. Try to include:</p>
-            <ul>
-                <li>Your morning routine</li>
-                <li>Activities you did</li>
-                <li>People you met</li>
-                <li>How you felt</li>
-            </ul>
-            <h5>Example:</h5>
-            <p class="example-text">
-                Ayer me desperté a las siete de la mañana. Primero, tomé un café y desayuné con mi familia.
-                Después, fui a trabajar en autobús. Tuve una reunión importante con mis colegas sobre un nuevo proyecto.
-                Por la tarde, almorcé con mi amigo Juan en un restaurante cerca de la oficina. La comida estaba deliciosa.
-                Regresé a casa a las seis y cené con mi familia. Estaba cansado pero contento.
-            </p>
-        </div>
-    </div>
-
-    <div id="advancedPromptModal" class="prompt-modal">
-        <div class="prompt-modal-content">
-            <span class="close-modal">&times;</span>
-            <h4>Advanced Prompt</h4>
-            <p><strong>Topic: Opinion on Technology and Education</strong></p>
-            <p>Share your thoughts on how technology affects education. Consider:</p>
-            <ul>
-                <li>Benefits and challenges of technology in learning</li>
-                <li>Your personal experiences with online education</li>
-                <li>How you think education will change in the future</li>
-                <li>Recommendations for better integration of technology in schools</li>
-            </ul>
-            <h5>Example:</h5>
-            <p class="example-text">
-                En mi opinión, la tecnología ha transformado completamente el panorama educativo en las últimas décadas.
-                Por un lado, ofrece herramientas increíbles que facilitan el acceso al conocimiento y permiten experiencias
-                de aprendizaje personalizadas. Los estudiantes pueden aprender a su propio ritmo y acceder a recursos que antes
-                eran imposibles de obtener.<br><br>
-                
-                Sin embargo, también presenta desafíos significativos. La dependencia excesiva de las pantallas puede afectar
-                la concentración y las habilidades sociales. Además, no todos los estudiantes tienen el mismo acceso a la tecnología,
-                lo que puede aumentar la desigualdad educativa.<br><br>
-                
-                Basado en mi experiencia personal con cursos en línea, creo que el futuro de la educación será un modelo híbrido
-                que combine lo mejor de la enseñanza tradicional con las ventajas de la tecnología. Las instituciones educativas
-                deberían invertir en capacitación docente para aprovechar al máximo estas herramientas.
-            </p>
-        </div>
-    </div>
-
     <footer class="mt-4">
         <p>© 2025 Spanish Learning Edge LLC</p>
     </footer>
@@ -428,56 +366,89 @@
             const audioPreview = document.getElementById('audioPreview');
             const recordedAudio = document.getElementById('recordedAudio');
             
-            // Prompt modal elements
-            const beginnerPromptModal = document.getElementById('beginnerPromptModal');
-            const intermediatePromptModal = document.getElementById('intermediatePromptModal');
-            const advancedPromptModal = document.getElementById('advancedPromptModal');
+            // NEW: Define prompt data structure
+            const promptData = {
+                beginner: {
+                    level: "Beginner",
+                    topic: "Topic: Introduce Yourself",
+                    instructions: "Talk about yourself in Spanish. Try to include:",
+                    list: [
+                        "Your name and where you're from",
+                        "Your age and occupation",
+                        "What languages you speak",
+                        "Your hobbies or interests"
+                    ],
+                    example: "Hola, me llamo María y soy de California. Tengo veinticinco años y soy estudiante. Hablo inglés y estoy aprendiendo español. Me gusta leer, cocinar, y pasar tiempo con mis amigos."
+                },
+                intermediate: {
+                    level: "Intermediate",
+                    topic: "Topic: Describe Your Day",
+                    instructions: "Talk about your typical day or what you did yesterday. Try to include:",
+                    list: [
+                        "Your morning routine",
+                        "Activities you did",
+                        "People you met",
+                        "How you felt"
+                    ],
+                    example: "Ayer me desperté a las siete de la mañana. Primero, tomé un café y desayuné con mi familia. Después, fui a trabajar en autobús. Tuve una reunión importante con mis colegas sobre un nuevo proyecto. Por la tarde, almorcé con mi amigo Juan en un restaurante cerca de la oficina. La comida estaba deliciosa. Regresé a casa a las seis y cené con mi familia. Estaba cansado pero contento."
+                },
+                advanced: {
+                    level: "Advanced",
+                    topic: "Topic: Opinion on Technology and Education",
+                    instructions: "Share your thoughts on how technology affects education. Consider:",
+                    list: [
+                        "Benefits and challenges of technology in learning",
+                        "Your personal experiences with online education",
+                        "How you think education will change in the future",
+                        "Recommendations for better integration of technology in schools"
+                    ],
+                    example: "En mi opinión, la tecnología ha transformado completamente el panorama educativo en las últimas décadas. Por un lado, ofrece herramientas increíbles que facilitan el acceso al conocimiento y permiten experiencias de aprendizaje personalizadas. Los estudiantes pueden aprender a su propio ritmo y acceder a recursos que antes eran imposibles de obtener.\n\nSin embargo, también presenta desafíos significativos. La dependencia excesiva de las pantallas puede afectar la concentración y las habilidades sociales. Además, no todos los estudiantes tienen el mismo acceso a la tecnología, lo que puede aumentar la desigualdad educativa.\n\nBasado en mi experiencia personal con cursos en línea, creo que el futuro de la educación será un modelo híbrido que combine lo mejor de la enseñanza tradicional con las ventajas de la tecnología. Las instituciones educativas deberían invertir en capacitación docente para aprovechar al máximo estas herramientas."
+                }
+            };
+
+            // NEW: Prompt display handling
+            const promptDisplay = document.getElementById('promptDisplay');
+            const promptLevelTitle = document.getElementById('promptLevelTitle');
+            const promptTopicTitle = document.getElementById('promptTopicTitle');
+            const promptInstructions = document.getElementById('promptInstructions');
+            const promptList = document.getElementById('promptList');
+            const promptExample = document.getElementById('promptExample');
+            const closePromptDisplay = document.getElementById('closePromptDisplay');
             const promptLinks = document.querySelectorAll('.prompt-link');
-            const closeModalButtons = document.querySelectorAll('.close-modal');
 
-            let mediaRecorder;
-            let audioChunks = [];
-            let recording = false;
-            let recordingTime = 0;
-            let timerInterval;
-            let audioURL = null;
-            let selectedAudioFile = null;
-
-            // Prompt modal functionality
+            // NEW: Show prompt when a level is clicked
             promptLinks.forEach(link => {
                 link.addEventListener('click', function(e) {
                     e.preventDefault();
                     const level = this.getAttribute('data-level');
                     
-                    if (level === 'beginner') {
-                        beginnerPromptModal.style.display = 'block';
-                    } else if (level === 'intermediate') {
-                        intermediatePromptModal.style.display = 'block';
-                    } else if (level === 'advanced') {
-                        advancedPromptModal.style.display = 'block';
+                    if (promptData[level]) {
+                        const data = promptData[level];
+                        
+                        // Set content
+                        promptLevelTitle.textContent = data.level;
+                        promptTopicTitle.textContent = data.topic;
+                        promptInstructions.textContent = data.instructions;
+                        
+                        // Clear and rebuild list
+                        promptList.innerHTML = '';
+                        data.list.forEach(item => {
+                            const li = document.createElement('li');
+                            li.textContent = item;
+                            promptList.appendChild(li);
+                        });
+                        
+                        promptExample.innerHTML = data.example.replace(/\n\n/g, '<br><br>');
+                        
+                        // Show the display
+                        promptDisplay.style.display = 'block';
                     }
                 });
             });
 
-            closeModalButtons.forEach(button => {
-                button.addEventListener('click', function() {
-                    beginnerPromptModal.style.display = 'none';
-                    intermediatePromptModal.style.display = 'none';
-                    advancedPromptModal.style.display = 'none';
-                });
-            });
-
-            // Close modal when clicking outside
-            window.addEventListener('click', function(e) {
-                if (e.target === beginnerPromptModal) {
-                    beginnerPromptModal.style.display = 'none';
-                }
-                if (e.target === intermediatePromptModal) {
-                    intermediatePromptModal.style.display = 'none';
-                }
-                if (e.target === advancedPromptModal) {
-                    advancedPromptModal.style.display = 'none';
-                }
+            // NEW: Close prompt display
+            closePromptDisplay.addEventListener('click', function() {
+                promptDisplay.style.display = 'none';
             });
 
             // Recording
