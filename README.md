@@ -59,7 +59,7 @@ An AI-powered web application that provides feedback on Spanish pronunciation us
 3. Run the following command:
 
 ```bash
-gcloud run deploy strawberry-cupcake\
+gcloud run deploy angelicagenel-strawberry-cupcake\
   --source . \
   --platform managed \
   --region us-central1 \
