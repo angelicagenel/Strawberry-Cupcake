@@ -1,12 +1,3 @@
-It looks like you want to ensure that your `app.py` file is correctly configured to use the `upgraded-spoon-bucket` in Google Cloud Storage. Let's clarify and streamline the process:
-
-1. **Set the Bucket Name**: Make sure the bucket name in your script is set to `upgraded-spoon-bucket`.
-
-2. **Ensure Single Bucket Usage**: Ensure that your code uses only this bucket throughout the application.
-
-Here's a cleaned-up version of your `app.py` file, making sure it uses the `upgraded-spoon-bucket`:
-
-```python
 import os
 import json
 import tempfile
@@ -15,6 +6,7 @@ from flask import Flask, request, render_template, jsonify, send_file, url_for
 from google.cloud import speech
 from google.cloud import storage
 from google.cloud import texttospeech
+from google.api_core import exceptions  # Add proper import for exceptions
 from fuzzywuzzy import fuzz
 import uuid
 
@@ -24,15 +16,15 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-# Configure Cloud Storage
-BUCKET_NAME = 'upgraded-spoon-bucket'
+# Configure Cloud Storage - Get bucket name from environment variable
+BUCKET_NAME = os.environ.get('BUCKET_NAME', 'strawberry-cupcake-files')
 storage_client = storage.Client()
 
 def get_or_create_bucket(bucket_name):
     try:
         bucket = storage_client.get_bucket(bucket_name)
         logger.info(f"Connected to bucket: {bucket_name}")
-    except google.api_core.exceptions.NotFound:
+    except exceptions.NotFound:  # Fixed exception reference
         try:
             bucket = storage_client.create_bucket(bucket_name)
             logger.info(f"Bucket {bucket_name} created.")
@@ -485,6 +477,7 @@ def generate_tts_feedback(text, level):
             temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')
             temp_file.write(response.audio_content)
             temp_file.close()
+            return temp_file.name  # Fixed: Return the path to the temp file
             
     except Exception as e:
         logger.error(f"Error generating TTS: {e}")
