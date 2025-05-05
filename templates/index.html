@@ -1,6 +1,3 @@
-# Updated index.html
-
-```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -182,18 +179,15 @@
             height: 100%;
             background-color: rgba(0, 0, 0, 0.5);
             z-index: 1000;
-            overflow-y: auto;
         }
         
         .prompt-modal-content {
             background-color: white;
-            margin: 5% auto;
+            margin: 10% auto;
             padding: 20px;
             border-radius: 10px;
-            width: 90%;
+            width: 80%;
             max-width: 600px;
-            max-height: 80vh;
-            overflow-y: auto;
         }
         
         .close-modal {
@@ -207,17 +201,6 @@
             border-radius: 5px;
             padding: 15px;
             margin-top: 10px;
-        }
-        
-        /* Style for recording button inside modal */
-        .modal-record-btn {
-            margin-top: 15px;
-            background-color: var(--color-accent);
-            color: white;
-        }
-        
-        .modal-record-btn.recording {
-            animation: pulse 1.5s infinite;
         }
         
         @keyframes pulse {
@@ -235,9 +218,6 @@
     </style>
 </head>
 <body>
-    <!-- Hidden field to track practice level -->
-    <input type="hidden" id="practiceLevel" name="practice_level" value="">
-    
     <div class="container">
         <!-- HEADER -->
         <div class="header">
@@ -367,13 +347,6 @@
                 Hola, me llamo María y soy de California. Tengo veinticinco años y soy estudiante. 
                 Hablo inglés y estoy aprendiendo español. Me gusta leer, cocinar, y pasar tiempo con mis amigos.
             </p>
-            <!-- Add recording button inside modal -->
-            <div class="text-center mt-4">
-                <button class="btn btn-record modal-record-btn" data-level="beginner">
-                    <i class="bi bi-mic"></i> Record while reading
-                </button>
-                <div class="recording-timer mt-2" style="display: none;">00:00</div>
-            </div>
         </div>
     </div>
 
@@ -396,13 +369,6 @@
                 Por la tarde, almorcé con mi amigo Juan en un restaurante cerca de la oficina. La comida estaba deliciosa.
                 Regresé a casa a las seis y cené con mi familia. Estaba cansado pero contento.
             </p>
-            <!-- Add recording button inside modal -->
-            <div class="text-center mt-4">
-                <button class="btn btn-record modal-record-btn" data-level="intermediate">
-                    <i class="bi bi-mic"></i> Record while reading
-                </button>
-                <div class="recording-timer mt-2" style="display: none;">00:00</div>
-            </div>
         </div>
     </div>
 
@@ -433,13 +399,6 @@
                 que combine lo mejor de la enseñanza tradicional con las ventajas de la tecnología. Las instituciones educativas
                 deberían invertir en capacitación docente para aprovechar al máximo estas herramientas.
             </p>
-            <!-- Add recording button inside modal -->
-            <div class="text-center mt-4">
-                <button class="btn btn-record modal-record-btn" data-level="advanced">
-                    <i class="bi bi-mic"></i> Record while reading
-                </button>
-                <div class="recording-timer mt-2" style="display: none;">00:00</div>
-            </div>
         </div>
     </div>
 
@@ -468,7 +427,6 @@
             const loadingIndicator = document.getElementById('loadingIndicator');
             const audioPreview = document.getElementById('audioPreview');
             const recordedAudio = document.getElementById('recordedAudio');
-            const practiceLevel = document.getElementById('practiceLevel');
             
             // Prompt modal elements
             const beginnerPromptModal = document.getElementById('beginnerPromptModal');
@@ -476,8 +434,6 @@
             const advancedPromptModal = document.getElementById('advancedPromptModal');
             const promptLinks = document.querySelectorAll('.prompt-link');
             const closeModalButtons = document.querySelectorAll('.close-modal');
-            const modalRecordButtons = document.querySelectorAll('.modal-record-btn');
-            const recordingTimers = document.querySelectorAll('.recording-timer');
 
             let mediaRecorder;
             let audioChunks = [];
@@ -486,8 +442,6 @@
             let timerInterval;
             let audioURL = null;
             let selectedAudioFile = null;
-            let activeModal = null;
-            let activeTimer = null;
 
             // Prompt modal functionality
             promptLinks.forEach(link => {
@@ -495,95 +449,47 @@
                     e.preventDefault();
                     const level = this.getAttribute('data-level');
                     
-                    // Close any open modals first
-                    beginnerPromptModal.style.display = 'none';
-                    intermediatePromptModal.style.display = 'none';
-                    advancedPromptModal.style.display = 'none';
-                    
                     if (level === 'beginner') {
                         beginnerPromptModal.style.display = 'block';
-                        activeModal = beginnerPromptModal;
                     } else if (level === 'intermediate') {
                         intermediatePromptModal.style.display = 'block';
-                        activeModal = intermediatePromptModal;
                     } else if (level === 'advanced') {
                         advancedPromptModal.style.display = 'block';
-                        activeModal = advancedPromptModal;
                     }
                 });
             });
 
             closeModalButtons.forEach(button => {
                 button.addEventListener('click', function() {
-                    // Only close if not recording
-                    if (!recording) {
-                        beginnerPromptModal.style.display = 'none';
-                        intermediatePromptModal.style.display = 'none';
-                        advancedPromptModal.style.display = 'none';
-                        activeModal = null;
-                    } else {
-                        alert('Please stop recording before closing this window.');
-                    }
+                    beginnerPromptModal.style.display = 'none';
+                    intermediatePromptModal.style.display = 'none';
+                    advancedPromptModal.style.display = 'none';
                 });
             });
 
-            // Close modal when clicking outside, but only if not recording
+            // Close modal when clicking outside
             window.addEventListener('click', function(e) {
-                if (recording) return; // Don't close if recording
-                
                 if (e.target === beginnerPromptModal) {
                     beginnerPromptModal.style.display = 'none';
-                    activeModal = null;
                 }
                 if (e.target === intermediatePromptModal) {
                     intermediatePromptModal.style.display = 'none';
-                    activeModal = null;
                 }
                 if (e.target === advancedPromptModal) {
                     advancedPromptModal.style.display = 'none';
-                    activeModal = null;
                 }
             });
 
-            // Recording from the main button
+            // Recording
             recordButton.addEventListener('click', () => {
                 if (!recording) {
                     startRecording();
-                    practiceLevel.value = ''; // Clear practice level for free speech
                 } else {
                     stopRecording();
                 }
             });
             
-            // Recording from modal buttons
-            modalRecordButtons.forEach(button => {
-                button.addEventListener('click', function() {
-                    const level = this.getAttribute('data-level');
-                    
-                    if (!recording) {
-                        // Find the timer in this modal
-                        activeTimer = this.parentElement.querySelector('.recording-timer');
-                        startRecording(activeTimer);
-                        
-                        // Set the practice level
-                        practiceLevel.value = level;
-                        
-                        // Update button text
-                        this.innerHTML = '<i class="bi bi-stop-fill"></i> Stop Recording';
-                        this.classList.add('recording');
-                    } else {
-                        stopRecording();
-                        
-                        // Reset button text
-                        modalRecordButtons.forEach(btn => {
-                            btn.innerHTML = '<i class="bi bi-mic"></i> Record while reading';
-                            btn.classList.remove('recording');
-                        });
-                    }
-                });
-            });
-            
-            async function startRecording(timerElement = recordingTimer) {
+            async function startRecording() {
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                     mediaRecorder = new MediaRecorder(stream);
@@ -608,34 +514,15 @@
                     mediaRecorder.start();
                     recording = true;
                     
-                    // Update UI for recording state
+                    // Reset record button
                     recordButton.innerHTML = '<i class="bi bi-stop-fill"></i> Stop Recording';
                     recordButton.classList.add('recording');
                     
                     recordingStatus.textContent = 'Recording...';
                     audioPreview.style.display = 'none';
                     recordingTime = 0;
-                    
-                    // Show active timer
-                    if (timerElement) {
-                        timerElement.style.display = 'block';
-                        timerElement.textContent = '00:00';
-                    }
-                    
-                    // Start timer
-                    timerInterval = setInterval(() => {
-                        recordingTime++;
-                        const minutes = Math.floor(recordingTime / 60).toString().padStart(2, '0');
-                        const seconds = (recordingTime % 60).toString().padStart(2, '0');
-                        const timeText = `${minutes}:${seconds}`;
-                        
-                        // Update all visible timers
-                        if (timerElement) {
-                            timerElement.textContent = timeText;
-                        }
-                        recordingTimer.textContent = timeText;
-                    }, 1000);
-                    
+                    recordingTimer.style.display = 'block';
+                    timerInterval = setInterval(updateTimer, 1000);
                     // 1 min limit
                     setTimeout(() => {
                         if (recording) {
@@ -655,23 +542,13 @@
                     mediaRecorder.stream.getTracks().forEach(track => track.stop());
                     recording = false;
                     
-                    // Reset all record buttons
+                    // Reset record button
                     recordButton.innerHTML = '<i class="bi bi-mic"></i> Start Recording';
                     recordButton.classList.remove('recording');
                     
-                    modalRecordButtons.forEach(btn => {
-                        btn.innerHTML = '<i class="bi bi-mic"></i> Record while reading';
-                        btn.classList.remove('recording');
-                    });
-                    
                     recordingStatus.textContent = 'Recording stopped.';
                     clearInterval(timerInterval);
-                    
-                    // Hide all timers
                     recordingTimer.style.display = 'none';
-                    recordingTimers.forEach(timer => {
-                        timer.style.display = 'none';
-                    });
                 }
             }
             
@@ -679,13 +556,7 @@
                 recordingTime++;
                 const minutes = Math.floor(recordingTime / 60).toString().padStart(2, '0');
                 const seconds = (recordingTime % 60).toString().padStart(2, '0');
-                const timeText = `${minutes}:${seconds}`;
-                
-                // Update both the main timer and modal timer if active
-                recordingTimer.textContent = timeText;
-                if (activeTimer) {
-                    activeTimer.textContent = timeText;
-                }
+                recordingTimer.textContent = `${minutes}:${seconds}`;
             }
 
             // Submit
@@ -699,11 +570,6 @@
 
                 const formData = new FormData();
                 formData.append('file', selectedAudioFile);
-                
-                // Add practice level if available
-                if (practiceLevel.value) {
-                    formData.append('practice_level', practiceLevel.value);
-                }
 
                 fetch('/process-audio', {
                     method: 'POST',
@@ -753,13 +619,6 @@
                         improvementsList.appendChild(li);
                     });
                     
-                    // Close any open modals
-                    beginnerPromptModal.style.display = 'none';
-                    intermediatePromptModal.style.display = 'none';
-                    advancedPromptModal.style.display = 'none';
-                    activeModal = null;
-                    
-                    // Show results
                     resultContainer.style.display = 'block';
                     resultContainer.scrollIntoView({ behavior: 'smooth' });
                 })
@@ -776,7 +635,6 @@
                 recordingStatus.textContent = '';
                 submitButton.disabled = true;
                 selectedAudioFile = null;
-                practiceLevel.value = '';
                 if (audioURL) {
                     URL.revokeObjectURL(audioURL);
                     audioURL = null;
@@ -784,4 +642,5 @@
             });
         });
     </script>
-    
+</body>
+</html>
