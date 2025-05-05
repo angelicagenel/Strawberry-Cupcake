@@ -4,4 +4,4 @@ google-cloud-speech==2.21.0
 google-cloud-storage==2.14.0
 google-cloud-texttospeech==2.14.1
 fuzzywuzzy==0.18.0
-rapidfuzz
+python-Levenshtein==0.21.1
