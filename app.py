@@ -136,27 +136,41 @@ def transcribe_audio(audio_content):
     client = speech.SpeechClient()
     audio = speech.RecognitionAudio(content=audio_content)
     
-    # Try multiple configurations to increase success rate
+    # Enhanced configurations for better transcription results
     configs = [
-        speech.RecognitionConfig(
-            encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
-            sample_rate_hertz=16000,
-            language_code="es-ES",
-            enable_automatic_punctuation=True
-        ),
+        # Config 1: Enhanced model with automatic language detection
         speech.RecognitionConfig(
             encoding=speech.RecognitionConfig.AudioEncoding.ENCODING_UNSPECIFIED,
-            sample_rate_hertz=16000,
+            sample_rate_hertz=44100,
+            language_code="es-ES",
+            alternative_language_codes=["es-MX", "es-US"],
+            enable_automatic_punctuation=True,
+            use_enhanced=True,
+            model="default"
+        ),
+        # Config 2: Standard configuration with higher sample rate
+        speech.RecognitionConfig(
+            encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
+            sample_rate_hertz=48000,
             language_code="es-ES",
             enable_automatic_punctuation=True
         ),
+        # Config 3: Attempt with different encoding
         speech.RecognitionConfig(
             encoding=speech.RecognitionConfig.AudioEncoding.WEBM_OPUS,
             language_code="es-ES",
-            enable_automatic_punctuation=True
+            enable_automatic_punctuation=True,
+            max_alternatives=3
+        ),
+        # Config 4: Fallback with minimal configuration
+        speech.RecognitionConfig(
+            encoding=speech.RecognitionConfig.AudioEncoding.ENCODING_UNSPECIFIED,
+            language_code="es-ES",
+            enable_word_time_offsets=False
         )
     ]
     
+    # Try each configuration until one works
     for config in configs:
         try:
             logger.info(f"Trying transcription with config: {config}")
@@ -167,10 +181,11 @@ def transcribe_audio(audio_content):
                 logger.info(f"Transcription successful: '{transcript}'")
                 return transcript
             else:
-                logger.warning("No transcription results")
+                logger.warning("No transcription results with current config")
         except Exception as e:
             logger.error(f"Error in transcription with config {config}: {str(e)}")
     
+    # If all configurations fail, log error and return empty string
     logger.error("All transcription attempts failed")
     return ""
 
