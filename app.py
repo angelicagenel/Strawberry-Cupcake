@@ -574,15 +574,23 @@ def process_audio():
         spoken_text = transcribe_audio(audio_content)
         
         if not spoken_text:
-            logger.warning("No transcription returned")
-            return jsonify({
-                "score": 70,
-                "level": "Novice Mid",
-                "transcribed_text": "No transcription available. Please try speaking clearly in Spanish.",
-                "error": "Could not transcribe audio. Please try again.",
-                "strengths": [],
-                "areas_for_improvement": ["Speak clearly in Spanish", "Check your microphone"]
-            })
+    logger.warning("No transcription returned")
+    return jsonify({
+        "score": 70,
+        "level": "Novice Mid",
+        "transcribed_text": "No se pudo transcribir el audio. Por favor, intente de nuevo hablando claramente en español.",
+        "corrected_text": "No transcription available. Try speaking more slowly and clearly in Spanish.",
+        "error": "Could not transcribe audio. Please try again with clearer pronunciation.",
+        "feedback": "Our system had difficulty understanding your speech. This could be due to background noise, speaking too quietly, or using vocabulary that's difficult to recognize.",
+        "strengths": ["Attempt to speak in Spanish"],
+        "areas_for_improvement": [
+            "Speak clearly and at a moderate pace", 
+            "Use a good quality microphone",
+            "Reduce background noise",
+            "Try the Beginner prompt first to test your setup"
+        ],
+        "tts_audio_url": None
+    })
         
         # Calculate assessment based on mode
         if practice_level and practice_level in REFERENCES:
