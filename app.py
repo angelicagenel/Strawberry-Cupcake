@@ -574,8 +574,8 @@ def process_audio():
         spoken_text = transcribe_audio(audio_content)
         
         if not spoken_text:
-    logger.warning("No transcription returned")
-    return jsonify({
+        logger.warning("No transcription returned")
+        return jsonify({
         "score": 70,
         "level": "Novice Mid",
         "transcribed_text": "No se pudo transcribir el audio. Por favor, intente de nuevo hablando claramente en español.",
