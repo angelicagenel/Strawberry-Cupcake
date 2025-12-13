@@ -475,32 +475,57 @@ def generate_improvements(mispronounced, accuracy):
         
     return improvements
 
+# ATENCIÓN: Necesitará estas importaciones en la parte superior de su archivo app.py
+# (Asegúrese de que estén en la sección de 'import' junto a las demás):
+# import os
+# from google import genai
+# from google.genai import types 
+
 def generate_corrected_text(transcribed_text):
-    """Generate grammatically corrected version of the transcribed text"""
-    # This is a simplified version that just returns the transcribed text
-    # In a full implementation, you would use a grammar correction model or service
-    # For now, we're just implementing some basic corrections
+    """
+    Genera la versión gramaticalmente corregida del texto transcrito 
+    utilizando un modelo de lenguaje grande (LLM) para corrección avanzada.
+    """
     
-    # Simple corrections for common errors
-    corrections = {
-        "tu eres": "tú eres",
-        "el es": "él es",
-        "ella esta": "ella está",
-        "tu tienes": "tú tienes",
-        "yo quero": "yo quiero",
-        "buenes dias": "buenos días",
-        "como esta": "cómo está",
-        "como estas": "cómo estás",
-        "gracias por tu ayudar": "gracias por tu ayuda",
-        "no problemo": "no hay problema",
-        "yo no se": "yo no sé"
-    }
-    
-    corrected = transcribed_text
-    for error, correction in corrections.items():
-        corrected = corrected.replace(error, correction)
-    
-    return corrected
+    # Si la clave API no está configurada, se devuelve el texto sin corregir como fallback
+    if not os.getenv("GEMINI_API_KEY"):
+        print("Warning: GEMINI_API_KEY no encontrada. Devolviendo texto sin corregir.")
+        return transcribed_text
+
+    try:
+        # Inicializa el cliente (obtiene la clave API automáticamente del entorno)
+        client = genai.Client()
+        
+        # Instrucción de sistema para asegurar que el modelo solo corrija la gramática en español
+        system_instruction = (
+            "Eres un corrector gramatical experto en español. "
+            "Corrige el texto de entrada para mejorar la gramática, ortografía y fluidez. "
+            "Devuelve *solamente* el texto corregido sin añadir explicaciones, títulos, ni notas."
+        )
+        
+        # Llama al modelo para realizar la corrección
+        response = client.models.generate_content(
+            model='gemini-2.5-flash', # Modelo rápido y eficiente para corrección
+            contents=[types.Part.from_text(transcribed_text)],
+            config=types.GenerateContentConfig(
+                system_instruction=system_instruction,
+                temperature=0.0 # Temperatura baja para resultados deterministas y de alta fidelidad
+            )
+        )
+        
+        # Extrae y devuelve el texto corregido
+        corrected = response.text.strip()
+        
+        # Si la respuesta del modelo es vacía, devuelve el texto original
+        if not corrected:
+            return transcribed_text
+            
+        return corrected
+
+    except Exception as e:
+        # Manejo de errores de la API (p.ej., límite de tokens, error de conexión)
+        print(f"Error durante la corrección con el LLM: {e}") 
+        return transcribed_text
 
 def generate_tts_feedback(text, level):
     """Generate Text-to-Speech audio feedback in Spanish"""
