@@ -148,7 +148,7 @@ def transcribe_audio(audio_content):
             alternative_language_codes=["es-MX", "es-US"],
             enable_automatic_punctuation=True,
             use_enhanced=True,
-            model="video"
+            
         ),
         # Config 2: Standard configuration with higher sample rate
         speech.RecognitionConfig(
@@ -158,7 +158,7 @@ def transcribe_audio(audio_content):
             alternative_language_codes=["es-MX", "es-US"],
             enable_automatic_punctuation=True,
             use_enhanced=True,
-            model="video"
+            
         ),
         # Config 3: Attempt with different encoding
         speech.RecognitionConfig(
@@ -167,7 +167,6 @@ def transcribe_audio(audio_content):
             alternative_language_codes=["es-MX", "es-US"],
             enable_automatic_punctuation=True,
             use_enhanced=True,
-            model="video",
             max_alternatives=3
         ),
         # Config 4: Fallback with minimal configuration
@@ -175,7 +174,7 @@ def transcribe_audio(audio_content):
             encoding=speech.RecognitionConfig.AudioEncoding.ENCODING_UNSPECIFIED,
             language_code="es-ES",
             alternative_language_codes=["es-MX", "es-US"],
-            model="video"
+            
         )
     ]
     
