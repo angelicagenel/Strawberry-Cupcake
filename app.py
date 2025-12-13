@@ -153,20 +153,27 @@ def transcribe_audio(audio_content):
             encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
             sample_rate_hertz=48000,
             language_code="es-ES",
-            enable_automatic_punctuation=True
+            alternative_language_codes=["es-MX", "es-US"],
+            enable_automatic_punctuation=True,
+            use_enhanced=True,
+            model="video"
         ),
         # Config 3: Attempt with different encoding
         speech.RecognitionConfig(
             encoding=speech.RecognitionConfig.AudioEncoding.WEBM_OPUS,
             language_code="es-ES",
+            alternative_language_codes=["es-MX", "es-US"],
             enable_automatic_punctuation=True,
+            use_enhanced=True,
+            model="video",
             max_alternatives=3
         ),
         # Config 4: Fallback with minimal configuration
         speech.RecognitionConfig(
             encoding=speech.RecognitionConfig.AudioEncoding.ENCODING_UNSPECIFIED,
             language_code="es-ES",
-            enable_word_time_offsets=False
+            alternative_language_codes=["es-MX", "es-US"],
+            model="video"
         )
     ]
     
@@ -252,9 +259,9 @@ def actfl_assessment(transcribed_text):
         return {
             "score": 70.0,
             "level": "Novice Mid",
-            "feedback": "No speech detected. Please try again and speak clearly.",
+            "feedback": "We couldn't detect your speech. Please ensure your microphone is working and try speaking a bit louder. Keep going!",
             "strengths": [],
-            "areas_for_improvement": ["Speak clearly into the microphone"]
+            "areas_for_improvement": ["Check microphone connection and reduce background noise"]
         }
     
     # Score each word's pronunciation accuracy
