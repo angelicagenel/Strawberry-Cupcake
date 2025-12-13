@@ -476,12 +476,6 @@ def generate_improvements(mispronounced, accuracy):
         
     return improvements
 
-# ATENCIÓN: Necesitará estas importaciones en la parte superior de su archivo app.py
-# (Asegúrese de que estén en la sección de 'import' junto a las demás):
-# import os
-# from google import genai
-# from google.genai import types 
-
 def generate_corrected_text(transcribed_text):
     """
     Genera la versión gramaticalmente corregida del texto transcrito 
@@ -584,7 +578,7 @@ def generate_tts_feedback(text, level):
                 app.config[f'TTS_FILE_{filename}'] = temp_file.name
                 logger.info(f"TTS audio saved locally: {temp_file.name}")
                 return url_for('get_tts_audio', filename=filename)
-       else:
+        else:
             # Save to a temporary file and return its path
             temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')
             temp_file.write(response.audio_content)
@@ -593,6 +587,11 @@ def generate_tts_feedback(text, level):
             app.config[f'TTS_FILE_{filename}'] = temp_file.name
             logger.info(f"TTS audio saved locally: {temp_file.name}")
             return url_for('get_tts_audio', filename=filename)
+
+    except Exception as e:
+        logger.error(f"Error generating TTS audio: {str(e)}")
+        return None
+        
 # Flask routes
 @app.route('/')
 def home():
