@@ -593,10 +593,6 @@ def generate_tts_feedback(text, level):
             app.config[f'TTS_FILE_{filename}'] = temp_file.name
             logger.info(f"TTS audio saved locally: {temp_file.name}")
             return url_for('get_tts_audio', filename=filename)
-            
-        except Exception as e:
-        logger.error(f"Error generating TTS: {e}")
-        return None
 
 # Flask routes
 @app.route('/')
