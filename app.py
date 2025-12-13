@@ -146,7 +146,7 @@ def transcribe_audio(audio_content):
             alternative_language_codes=["es-MX", "es-US"],
             enable_automatic_punctuation=True,
             use_enhanced=True,
-            model="default"
+            model="video"
         ),
         # Config 2: Standard configuration with higher sample rate
         speech.RecognitionConfig(
