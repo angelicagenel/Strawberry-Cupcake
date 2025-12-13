@@ -574,7 +574,7 @@ def generate_tts_feedback(text, level):
                 )
                 logger.info(f"TTS audio generated and uploaded: {filename}")
                 return url
-            except Exception as e:
+                except Exception as e:
                 logger.error(f"Error uploading TTS audio to bucket: {str(e)}")
                 # Fallback to local storage if bucket upload fails
                 temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')
@@ -594,7 +594,7 @@ def generate_tts_feedback(text, level):
             logger.info(f"TTS audio saved locally: {temp_file.name}")
             return url_for('get_tts_audio', filename=filename)
             
-    except Exception as e:
+        except Exception as e:
         logger.error(f"Error generating TTS: {e}")
         return None
 
