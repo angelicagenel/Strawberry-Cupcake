@@ -127,10 +127,35 @@ def load_references():
             "advanced": "La educación es fundamental para el desarrollo de la sociedad."
         }
 
-# Initialize Spanish dictionary and references
+# Load ACTFL criteria from configuration file
+def load_actfl_criteria():
+    """Load detailed ACTFL proficiency criteria from configuration file"""
+    try:
+        try:
+            with open("actfl_criteria.json", "r", encoding="utf-8") as f:
+                return json.load(f)
+        except FileNotFoundError:
+            if bucket:
+                blob = bucket.blob('actfl_criteria.json')
+                try:
+                    if blob.exists():
+                        content = blob.download_as_string().decode('utf-8')
+                        return json.loads(content)
+                except exceptions.NotFound:
+                    logger.warning(f"ACTFL criteria file not found in bucket {BUCKET_NAME}")
+            # Return None if file not found - will use built-in criteria
+            logger.warning("ACTFL criteria file not found. Using built-in criteria.")
+            return None
+    except Exception as e:
+        logger.error(f"Error loading ACTFL criteria: {e}")
+        return None
+
+# Initialize Spanish dictionary, references, and ACTFL criteria
 SPANISH_DICT = load_dictionary()
 REFERENCES = load_references()
+ACTFL_CRITERIA = load_actfl_criteria()
 logger.info(f"Dictionary loaded with {len(SPANISH_DICT)} words")
+logger.info(f"ACTFL criteria loaded: {'Yes' if ACTFL_CRITERIA else 'No (using built-in)'}")
 
 # Transcribe audio using Google Cloud Speech-to-Text
 def transcribe_audio(audio_content):
@@ -419,8 +444,9 @@ def actfl_assessment(transcribed_text):
     
     logger.info(f"ACTFL Scoring - Accuracy: {accuracy_score}, Recognition: {recognized_word_percentage*100}, " +
               f"Text: {text_complexity}, Vocab: {vocabulary_score}, Final: {composite_score}, Level: {level}")
-    
-    return {
+
+    # Build the assessment result
+    assessment_result = {
         "score": round(composite_score, 1),
         "level": level,
         "feedback": generate_feedback(level),
@@ -429,9 +455,54 @@ def actfl_assessment(transcribed_text):
         "word_scores": dict(zip(words, word_scores))
     }
 
+    # Add detailed criteria descriptors if available
+    if ACTFL_CRITERIA:
+        for level_key, criteria in ACTFL_CRITERIA.items():
+            if criteria["name"] == level:
+                assessment_result["criteria_details"] = {
+                    "oral_production": criteria["oral_production"],
+                    "functions": criteria["functions"],
+                    "discourse": criteria["discourse"],
+                    "grammatical_control": criteria["grammatical_control"],
+                    "vocabulary": criteria["vocabulary"],
+                    "pronunciation": criteria["pronunciation"],
+                    "communication_strategies": criteria["communication_strategies"],
+                    "sociocultural_use": criteria["sociocultural_use"]
+                }
+                break
+
+    return assessment_result
+
 def determine_actfl_level(score, word_count, recognized_ratio):
     """Determine ACTFL proficiency level based on score and other factors"""
-    
+
+    # If we have loaded ACTFL criteria, use the score ranges from there
+    if ACTFL_CRITERIA:
+        # Adjust score based on performance factors
+        adjusted_score = score
+
+        # Boost score for longer, more complex speech (discourse production)
+        if word_count >= 15 and recognized_ratio >= 0.9:
+            adjusted_score = min(100, score + 3)
+        elif word_count >= 10 and recognized_ratio >= 0.85:
+            adjusted_score = min(100, score + 2)
+        elif word_count >= 5 and recognized_ratio >= 0.7:
+            adjusted_score = min(100, score + 1)
+
+        # Penalize for very short utterances or low recognition
+        if word_count < 3 or recognized_ratio < 0.5:
+            adjusted_score = max(0, score - 5)
+
+        # Find the matching level based on score range
+        for level_key, criteria in ACTFL_CRITERIA.items():
+            score_min, score_max = criteria["score_range"]
+            if score_min <= adjusted_score <= score_max:
+                return criteria["name"]
+
+        # Fallback to Novice Low if no match found
+        return "Novice Low"
+
+    # Fallback to original logic if criteria file not loaded
     # Advanced Levels (Score 80-100)
     if score >= 80:
         if score >= 90:
@@ -447,9 +518,9 @@ def determine_actfl_level(score, word_count, recognized_ratio):
             if recognized_ratio >= 0.85 and word_count >= 10:
                 return "Advanced Low"
             else:
-                return "Intermediate High" 
+                return "Intermediate High"
         else:
-            return "Intermediate High" 
+            return "Intermediate High"
 
     # Intermediate Levels (Score 65-79)
     elif score >= 65:
@@ -458,7 +529,7 @@ def determine_actfl_level(score, word_count, recognized_ratio):
             if word_count >= 8 and recognized_ratio >= 0.8:
                 return "Intermediate High"
             else:
-                return "Intermediate Mid" 
+                return "Intermediate Mid"
 
         elif score >= 70:
             # Intermediate Mid: Handles straightforward situations (survival level)
@@ -467,8 +538,8 @@ def determine_actfl_level(score, word_count, recognized_ratio):
             else:
                 return "Intermediate Low"
         else:
-            return "Intermediate Low" 
-            
+            return "Intermediate Low"
+
     # Novice Levels (Score 50-64)
     elif score >= 50:
         if score >= 60:
@@ -481,22 +552,32 @@ def determine_actfl_level(score, word_count, recognized_ratio):
             # Novice Mid: Basic needs/personal info with memorized phrases
             return "Novice Mid"
         else:
-            return "Novice Low" 
-            
+            return "Novice Low"
+
     else:
         return "Novice Low"
 
 def generate_feedback(level):
     """Generate feedback text based on ACTFL level"""
+
+    # If we have loaded ACTFL criteria, use feedback templates from there
+    if ACTFL_CRITERIA:
+        for level_key, criteria in ACTFL_CRITERIA.items():
+            if criteria["name"] == level:
+                return criteria["feedback_template"]
+
+    # Fallback to built-in feedback templates
     feedback_templates = {
+        "Distinguished": "Your pronunciation and language use demonstrate Distinguished-level proficiency, comparable to educated native speakers. You exhibit complete mastery of the language with culturally authentic and sophisticated discourse across all contexts.",
+        "Superior": "Your pronunciation is exceptional, demonstrating fluent control and native-like quality. You can effectively discuss abstract topics and support complex arguments with sophisticated language use.",
         "Advanced High": "Your pronunciation is excellent! You can deal with unexpected complications in social situations, using abundant, detailed, and clear language.",
         "Advanced Mid": "Your pronunciation is very strong. You can narrate and describe effectively across major time frames, producing coherent paragraphs understandable by most native speakers.",
         "Advanced Low": "Your pronunciation is understandable by most natives, enabling you to narrate and describe across major time frames and handle routine situations.",
-        
+
         "Intermediate High": "Your pronunciation is generally clear, helping you narrate/describe in major time frames using connected discourse (paragraphs), but you may struggle with complex situations.",
         "Intermediate Mid": "Your pronunciation is clear enough to handle straightforward social situations and discuss details about yourself and your environment (food, travel).",
         "Intermediate Low": "Your pronunciation is at a functional level, allowing for simple, predictable communication, asking, and answering basic questions.",
-        
+
         "Novice High": "Your pronunciation shows improvement, enabling short, predictable messages and simple sentences on familiar topics, though you may still need help.",
         "Novice Mid": "Your pronunciation handles basic needs and personal information, primarily with memorized phrases or simple sentences.",
         "Novice Low": "Your pronunciation requires development. You are at the earliest stage of language acquisition."
