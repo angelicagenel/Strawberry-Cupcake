@@ -408,59 +408,72 @@ def generate_feedback(level):
         
         "Intermediate High": "Your pronunciation is generally clear, helping you narrate/describe in major time frames using connected discourse (paragraphs), but you may struggle with complex situations.",
         "Intermediate Mid": "Your pronunciation is clear enough to handle straightforward social situations and discuss details about yourself and your environment (food, travel).",
-        "Intermediate Low": "Your pronunciation is at a survival level, allowing for simple, predictable communication, asking, and answering basic questions.",
+        "Intermediate Low": "Your pronunciation is at a functional level, allowing for simple, predictable communication, asking, and answering basic questions.",
         
         "Novice High": "Your pronunciation shows improvement, enabling short, predictable messages and simple sentences on familiar topics, though you may still need help.",
         "Novice Mid": "Your pronunciation handles basic needs and personal information, primarily with memorized phrases or simple sentences.",
-        "Novice Low": "Your pronunciation requires substantial development. You are at the earliest stage of language acquisition."
+        "Novice Low": "Your pronunciation requires development. You are at the earliest stage of language acquisition."
     }
     return feedback_templates.get(level, "Your pronunciation shows varying levels of accuracy.")
 
 def generate_strengths(accuracy, recognition_ratio, word_count):
-    """Generate list of strengths based on performance"""
+    """Generate list of strengths based on performance, aligned with 9 ACTFL levels"""
     strengths = []
     
+    # Strengths based on Accuracy
     if accuracy >= 90:
-        strengths.append("Excellent pronunciation accuracy")
-    elif accuracy >= 80:
-        strengths.append("Good pronunciation accuracy")
-    elif accuracy >= 70:
-        strengths.append("Fair pronunciation accuracy")
+        strengths.append("Excellent, near-native pronunciation accuracy (Advanced High)")
+    elif accuracy >= 85:
+        strengths.append("High degree of accuracy, aiding comprehensibility (Advanced Low/Mid)")
+    elif accuracy >= 75:
+        strengths.append("Generally clear pronunciation across most common sounds (Intermediate High)")
+    elif accuracy >= 65:
+        strengths.append("Sufficient pronunciation for simple, predictable communication (Intermediate Low/Mid)")
     
+    # Strengths based on Recognition/Clarity
     if recognition_ratio >= 0.9:
-        strengths.append("Nearly all words clearly pronounced")
-    elif recognition_ratio >= 0.7:
-        strengths.append("Most words clearly pronounced")
-    
-    if word_count >= 10:
-        strengths.append("Good use of extended speech")
+        strengths.append("Nearly all words clearly pronounced, leading to high comprehension.")
+    elif recognition_ratio >= 0.8:
+        strengths.append("Most words pronounced clearly enough for connected discourse.")
+    elif recognition_ratio >= 0.6:
+        strengths.append("Basic phrases and common words are clearly articulated.")
+
+    # Strengths based on Text Type/Length (Extended Speech)
+    if word_count >= 15:
+        strengths.append("Ability to produce extended, detailed paragraphs of connected discourse.")
+    elif word_count >= 8:
+        strengths.append("Good use of connected discourse (multiple sentences) in major time frames.")
     elif word_count >= 5:
-        strengths.append("Effective use of phrases")
-    
+        strengths.append("Effective use of simple sentences and phrases.")
+        
     if not strengths:
-        strengths.append("Some speech recognized")
-    
+        strengths.append("Initial attempts at speech were successfully recognized.")
+        
     return strengths
 
 def generate_improvements(mispronounced, accuracy):
-    """Generate suggested areas for improvement"""
-    areas = []
+    """Generate suggested areas for improvement, aligned with 9 ACTFL levels"""
+    improvements = []
     
-    if len(mispronounced) > 0:
-        if len(mispronounced) <= 3:
-            areas.append(f"Focus on pronouncing: {', '.join(mispronounced)}")
-        else:
-            areas.append("Several words were mispronounced or unclear")
+    # Generic suggestions based on accuracy score
+    if accuracy < 60:
+        improvements.append("Prioritize basic needs and personal information; focus on highly frequent words and memorized phrases (Novice Low/Mid).")
+    elif accuracy < 75:
+        improvements.append("Focus on simple sentence structures and clarity to move beyond the survival level (Intermediate Low).")
+    elif accuracy < 85:
+        improvements.append("Work on connecting simple sentences into paragraphs and mastering descriptions across major time frames (Intermediate High).")
+    elif accuracy < 95:
+        improvements.append("Practice handling unexpected complications and refining subtle intonation for native-like fluency (Advanced Low/Mid).")
+
+    # Specific Mispronunciation Feedback
+    if mispronounced:
+        improvements.append(f"Specifically target the pronunciation of: {', '.join(mispronounced[:3])} to improve clarity and reduce ambiguity.")
     
-    if accuracy < 70:
-        areas.append("Work on overall pronunciation clarity")
-    elif accuracy < 80:
-        areas.append("Practice common Spanish sounds")
-    
-    if not areas:
-        areas.append("Continue practicing to maintain your skills")
-    
-    return areas
+    # Final suggestion if no other specific improvements were generated
+    if not improvements:
+        improvements.append("Maintain high-level practice by engaging in complex social situations and abstract topics.")
+        
+    return improvements
 
 def generate_corrected_text(transcribed_text):
     """Generate grammatically corrected version of the transcribed text"""
