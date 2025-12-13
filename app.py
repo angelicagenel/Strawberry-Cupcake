@@ -345,51 +345,74 @@ def actfl_assessment(transcribed_text):
 def determine_actfl_level(score, word_count, recognized_ratio):
     """Determine ACTFL proficiency level based on score and other factors"""
     
-    # Distinguished/Superior level
-    if score >= 95:
-        return "Distinguished"
-    elif score >= 90:
-        return "Superior"
-    
-    # Advanced levels
-    elif score >= 85:
-        return "Advanced High"
-    elif score >= 80:
-        return "Advanced Mid"
-    elif score >= 75:
-        return "Advanced Low"
-    
-    # Intermediate levels
-    elif score >= 70:
-        if word_count >= 5 and recognized_ratio >= 0.7:
-            return "Intermediate High"
+    # Advanced Levels (Score 80-100)
+    if score >= 80:
+        if score >= 90:
+            # Advanced High: High score + strong performance on length and clarity
+            if recognized_ratio >= 0.9 and word_count >= 15:
+                return "Advanced High"
+            # Advanced Low/Mid combined: Excellent score, but maybe less extended discourse
+            else:
+                return "Advanced Mid"
+
+        elif score >= 85:
+             # Advanced Low: Good score, but needs longer discourse/fewer errors for High
+            if recognized_ratio >= 0.85 and word_count >= 10:
+                return "Advanced Low"
+            else:
+                return "Intermediate High" 
         else:
-            return "Intermediate Mid"
+            return "Intermediate High" 
+
+    # Intermediate Levels (Score 65-79)
     elif score >= 65:
-        return "Intermediate Low"
-    
-    # Novice levels
-    elif score >= 60:
-        return "Novice High"
-    elif score >= 55:
-        return "Novice Mid"
+        if score >= 75:
+            # Intermediate High: Can produce connected discourse (paragraphs)
+            if word_count >= 8 and recognized_ratio >= 0.8:
+                return "Intermediate High"
+            else:
+                return "Intermediate Mid" 
+
+        elif score >= 70:
+            # Intermediate Mid: Handles straightforward situations (survival level)
+            if recognized_ratio >= 0.7 and word_count >= 5:
+                return "Intermediate Mid"
+            else:
+                return "Intermediate Low"
+        else:
+            return "Intermediate Low" 
+            
+    # Novice Levels (Score 50-64)
+    elif score >= 50:
+        if score >= 60:
+            # Novice High: Short, predictable messages/simple sentences
+            if word_count >= 3 and recognized_ratio >= 0.6:
+                return "Novice High"
+            else:
+                return "Novice Mid"
+        elif score >= 55:
+            # Novice Mid: Basic needs/personal info with memorized phrases
+            return "Novice Mid"
+        else:
+            return "Novice Low" 
+            
     else:
         return "Novice Low"
 
 def generate_feedback(level):
     """Generate feedback text based on ACTFL level"""
     feedback_templates = {
-        "Distinguished": "Your pronunciation is exceptional and indistinguishable from a native speaker.",
-        "Superior": "Your pronunciation is excellent with native-like fluency and clarity.",
-        "Advanced High": "Your pronunciation is very strong with occasional minor inaccuracies.",
-        "Advanced Mid": "Your pronunciation is clear and competent. Most sounds are accurate.",
-        "Advanced Low": "Your pronunciation is good but uneven, with some inconsistencies.",
-        "Intermediate High": "Your pronunciation is understandable with some common errors.",
-        "Intermediate Mid": "Your pronunciation is generally understandable despite noticeable errors.",
-        "Intermediate Low": "Your pronunciation has frequent errors but is somewhat understandable.",
-        "Novice High": "Your pronunciation shows effort but needs considerable improvement.",
-        "Novice Mid": "Your pronunciation has significant issues affecting comprehensibility.",
-        "Novice Low": "Your pronunciation requires substantial development."
+        "Advanced High": "Your pronunciation is excellent! You can deal with unexpected complications in social situations, using abundant, detailed, and clear language.",
+        "Advanced Mid": "Your pronunciation is very strong. You can narrate and describe effectively across major time frames, producing coherent paragraphs understandable by most native speakers.",
+        "Advanced Low": "Your pronunciation is understandable by most natives, enabling you to narrate and describe across major time frames and handle routine situations.",
+        
+        "Intermediate High": "Your pronunciation is generally clear, helping you narrate/describe in major time frames using connected discourse (paragraphs), but you may struggle with complex situations.",
+        "Intermediate Mid": "Your pronunciation is clear enough to handle straightforward social situations and discuss details about yourself and your environment (food, travel).",
+        "Intermediate Low": "Your pronunciation is at a survival level, allowing for simple, predictable communication, asking, and answering basic questions.",
+        
+        "Novice High": "Your pronunciation shows improvement, enabling short, predictable messages and simple sentences on familiar topics, though you may still need help.",
+        "Novice Mid": "Your pronunciation handles basic needs and personal information, primarily with memorized phrases or simple sentences.",
+        "Novice Low": "Your pronunciation requires substantial development. You are at the earliest stage of language acquisition."
     }
     return feedback_templates.get(level, "Your pronunciation shows varying levels of accuracy.")
 
