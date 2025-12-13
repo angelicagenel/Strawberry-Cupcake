@@ -134,13 +134,29 @@ logger.info(f"Dictionary loaded with {len(SPANISH_DICT)} words")
 
 # Transcribe audio using Google Cloud Speech-to-Text
 def transcribe_audio(audio_content):
-    """Transcribe Spanish audio using Google Cloud Speech-to-Text"""
+    """Transcribe Spanish audio using Google Cloud Speech-to-Text with Speech Adaptation"""
     client = speech.SpeechClient()
     audio = speech.RecognitionAudio(content=audio_content)
-    
+
+    # FASE 1: Speech Adaptation - Prepare context phrases for better accent recognition
+    # Combine reference phrases and most common dictionary words
+    context_phrases = list(REFERENCES.values())
+
+    # Add top 500 most common words from dictionary (limited to avoid API limits)
+    if SPANISH_DICT:
+        common_words = list(SPANISH_DICT)[:500]
+        context_phrases.extend(common_words)
+
+    # Create speech context to boost recognition of expected vocabulary
+    speech_context = speech.SpeechContext(
+        phrases=context_phrases,
+        boost=15  # Increased boost for better non-native accent recognition
+    )
+
     # Enhanced configurations for better transcription results
+    # FASE 3: Additional optimization settings
     configs = [
-        # Config 1: Enhanced model with automatic language detection
+        # Config 1: Latest Long model with Speech Adaptation (BEST for non-native speakers)
         speech.RecognitionConfig(
             encoding=speech.RecognitionConfig.AudioEncoding.ENCODING_UNSPECIFIED,
             sample_rate_hertz=44100,
@@ -148,9 +164,17 @@ def transcribe_audio(audio_content):
             alternative_language_codes=["es-MX", "es-US"],
             enable_automatic_punctuation=True,
             use_enhanced=True,
-            
+            model="latest_long",  # FASE 1: Explicit model for better accent handling
+            enable_word_confidence=True,  # FASE 1: Track confidence per word
+            enable_word_time_offsets=True,  # FASE 3: Track timing for better analysis
+            enable_spoken_punctuation=True,  # FASE 3: Recognize spoken punctuation
+            enable_spoken_emojis=True,  # FASE 3: Recognize spoken emojis/emoticons
+            profanity_filter=False,  # FASE 3: Don't filter any words (accept all vocabulary)
+            speech_contexts=[speech_context],  # FASE 1: Speech Adaptation
+            max_alternatives=3,
+            audio_channel_count=1  # FASE 3: Mono audio (standard for most recordings)
         ),
-        # Config 2: Standard configuration with higher sample rate
+        # Config 2: Video model (good for noisy audio with accents)
         speech.RecognitionConfig(
             encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
             sample_rate_hertz=48000,
@@ -158,43 +182,105 @@ def transcribe_audio(audio_content):
             alternative_language_codes=["es-MX", "es-US"],
             enable_automatic_punctuation=True,
             use_enhanced=True,
-            
+            model="video",  # Good for challenging audio conditions
+            enable_word_confidence=True,
+            enable_word_time_offsets=True,
+            profanity_filter=False,
+            speech_contexts=[speech_context],
+            max_alternatives=3,
+            audio_channel_count=1
         ),
-        # Config 3: Attempt with different encoding
+        # Config 3: Default model with Speech Adaptation
         speech.RecognitionConfig(
             encoding=speech.RecognitionConfig.AudioEncoding.WEBM_OPUS,
             language_code="es-ES",
             alternative_language_codes=["es-MX", "es-US"],
             enable_automatic_punctuation=True,
             use_enhanced=True,
+            model="default",
+            enable_word_confidence=True,
+            enable_word_time_offsets=True,
+            profanity_filter=False,
+            speech_contexts=[speech_context],
             max_alternatives=3
         ),
-        # Config 4: Fallback with minimal configuration
+        # Config 4: Fallback without model specification but with core improvements
         speech.RecognitionConfig(
             encoding=speech.RecognitionConfig.AudioEncoding.ENCODING_UNSPECIFIED,
             language_code="es-ES",
             alternative_language_codes=["es-MX", "es-US"],
-            
+            enable_automatic_punctuation=True,
+            profanity_filter=False,  # FASE 3: Accept all vocabulary even in fallback
+            speech_contexts=[speech_context],  # Still use adaptation even in fallback
+            max_alternatives=2
         )
     ]
     
-    # Try each configuration until one works
-    for config in configs:
+    # FASE 2: Try each configuration with improved error handling
+    last_error = None
+    config_names = ["latest_long", "video", "default", "fallback"]
+
+    for idx, config in enumerate(configs):
+        config_name = config_names[idx] if idx < len(config_names) else f"config_{idx}"
         try:
-            logger.info(f"Trying transcription with config: {config}")
+            logger.info(f"Attempting transcription with {config_name} model (config {idx+1}/{len(configs)})")
             response = client.recognize(config=config, audio=audio)
-            
+
             if response.results:
-                transcript = " ".join(result.alternatives[0].transcript for result in response.results)
-                logger.info(f"Transcription successful: '{transcript}'")
+                # Extract transcript and confidence scores
+                transcript_parts = []
+                total_confidence = 0
+                word_count = 0
+
+                for result in response.results:
+                    alternative = result.alternatives[0]
+                    transcript_parts.append(alternative.transcript)
+
+                    # Log word-level confidence if available
+                    if hasattr(alternative, 'words') and alternative.words:
+                        for word_info in alternative.words:
+                            if hasattr(word_info, 'confidence'):
+                                total_confidence += word_info.confidence
+                                word_count += 1
+                                logger.debug(f"Word: '{word_info.word}', Confidence: {word_info.confidence:.2f}")
+
+                transcript = " ".join(transcript_parts)
+                avg_confidence = (total_confidence / word_count * 100) if word_count > 0 else 0
+
+                logger.info(f"✓ Transcription successful with {config_name}: '{transcript}' "
+                          f"(avg confidence: {avg_confidence:.1f}%)")
                 return transcript
             else:
-                logger.warning("No transcription results with current config")
+                logger.warning(f"✗ No transcription results with {config_name} - audio may be unclear or silent")
+                last_error = f"No results from {config_name} model"
+
+        except exceptions.InvalidArgument as e:
+            # Invalid configuration (e.g., wrong encoding or sample rate)
+            logger.error(f"✗ Invalid configuration for {config_name}: {str(e)}")
+            last_error = f"Invalid config in {config_name}: {str(e)}"
+
+        except exceptions.OutOfRange as e:
+            # Audio too long for this configuration
+            logger.error(f"✗ Audio length issue with {config_name}: {str(e)}")
+            last_error = f"Audio length issue: {str(e)}"
+
+        except exceptions.ResourceExhausted as e:
+            # Quota exceeded - critical error
+            logger.error(f"✗ API quota exhausted: {str(e)}")
+            last_error = f"API quota exhausted: {str(e)}"
+            break  # No point trying other configs
+
         except Exception as e:
-            logger.error(f"Error in transcription with config {config}: {str(e)}")
-    
-    # If all configurations fail, log error and return empty string
-    logger.error("All transcription attempts failed")
+            # Generic error - log and continue
+            logger.error(f"✗ Unexpected error with {config_name}: {str(e)}")
+            last_error = str(e)
+
+    # FASE 2: If all configurations fail, provide detailed error information
+    logger.error(f"❌ All {len(configs)} transcription configurations failed. Last error: {last_error}")
+    logger.error("This may indicate: (1) Audio quality too low, (2) Non-Spanish speech, "
+                "(3) Background noise too high, or (4) Accent/pronunciation very unclear")
+
+    # Return empty string but log the reason
     return ""
 
 # Calculate pronunciation score when doing free speech
