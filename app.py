@@ -1,6 +1,6 @@
 import os
-from google import genai
 from google.genai import types
+from google.genai import Client
 import json
 import tempfile
 import logging
@@ -496,7 +496,7 @@ def generate_corrected_text(transcribed_text):
 
     try:
         # Inicializa el cliente (obtiene la clave API automáticamente del entorno)
-        client = genai.Client()
+        client = Client()
         
         # Instrucción de sistema para asegurar que el modelo solo corrija la gramática en español
         system_instruction = (
