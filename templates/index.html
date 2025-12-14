@@ -470,6 +470,13 @@
             
             async function startRecording() {
                 try {
+                    // Clear previous results when starting a new recording
+                    resultContainer.style.display = 'none';
+                    recordingStatus.textContent = '';
+                    audioPreview.style.display = 'none';
+                    submitButton.disabled = true;
+                    selectedAudioFile = null;
+
                     // iOS-compatible audio constraints
                     const audioConstraints = {
                         audio: {
