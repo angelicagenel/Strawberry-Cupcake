@@ -470,39 +470,95 @@
             
             async function startRecording() {
                 try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    mediaRecorder = new MediaRecorder(stream);
+                    // iOS-compatible audio constraints
+                    const audioConstraints = {
+                        audio: {
+                            channelCount: 1,
+                            sampleRate: 48000,
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: true
+                        }
+                    };
+
+                    const stream = await navigator.mediaDevices.getUserMedia(audioConstraints);
+
+                    // Detect supported MIME type for iOS compatibility
+                    let mimeType = 'audio/webm';
+                    let fileExtension = 'webm';
+
+                    if (MediaRecorder.isTypeSupported('audio/webm')) {
+                        mimeType = 'audio/webm';
+                        fileExtension = 'webm';
+                    } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                        mimeType = 'audio/mp4';
+                        fileExtension = 'mp4';
+                    } else if (MediaRecorder.isTypeSupported('audio/wav')) {
+                        mimeType = 'audio/wav';
+                        fileExtension = 'wav';
+                    }
+
+                    // Create MediaRecorder with detected MIME type
+                    mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
                     audioChunks = [];
+
                     mediaRecorder.addEventListener('dataavailable', e => {
-                        audioChunks.push(e.data);
+                        if (e.data.size > 0) {
+                            audioChunks.push(e.data);
+                        }
                     });
+
                     mediaRecorder.addEventListener('stop', () => {
-                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                        selectedAudioFile = new File([audioBlob], "recording.webm", { type: 'audio/webm' });
+                        const audioBlob = new Blob(audioChunks, { type: mimeType });
+                        selectedAudioFile = new File([audioBlob], `recording.${fileExtension}`, { type: mimeType });
+
                         if (audioURL) {
                             URL.revokeObjectURL(audioURL);
                         }
                         audioURL = URL.createObjectURL(audioBlob);
-                        
-                        // Show audio in the preview
-                        recordedAudio.src = audioURL;
-                        audioPreview.style.display = 'block';
-                        
+
+                        // Detect iOS devices
+                        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+                        if (isIOS) {
+                            // On iOS, show success message instead of audio player
+                            audioPreview.innerHTML = `
+                                <div class="alert alert-success">
+                                    <i class="bi bi-check-circle"></i> Recording saved successfully!
+                                    <br>File size: ${(audioBlob.size / 1024).toFixed(2)} KB
+                                    <br>Click "Analyze Pronunciation" to continue.
+                                </div>
+                            `;
+                            audioPreview.style.display = 'block';
+                        } else {
+                            // On desktop, show audio preview as normal
+                            audioPreview.innerHTML = `
+                                <h6>Preview:</h6>
+                                <audio id="recordedAudio" controls class="w-100"></audio>
+                            `;
+                            const audioElement = audioPreview.querySelector('#recordedAudio');
+                            audioElement.src = audioURL;
+                            audioPreview.style.display = 'block';
+                        }
+
                         submitButton.disabled = false;
                     });
-                    mediaRecorder.start();
+
+                    // Use timeslice for iOS compatibility
+                    mediaRecorder.start(1000);
                     recording = true;
-                    
+
                     // Reset record button
                     recordButton.innerHTML = '<i class="bi bi-stop-fill"></i> Stop Recording';
                     recordButton.classList.add('recording');
-                    
+
                     recordingStatus.textContent = 'Recording...';
                     audioPreview.style.display = 'none';
                     recordingTime = 0;
                     recordingTimer.style.display = 'block';
                     timerInterval = setInterval(updateTimer, 1000);
-                    // 2 min limit
+
+                    // 1 minute limit
                     setTimeout(() => {
                         if (recording) {
                             stopRecording();
