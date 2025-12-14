@@ -503,37 +503,46 @@ def generate_feedback(level):
     return feedback_templates.get(level, "Your pronunciation shows varying levels of accuracy.")
 
 def generate_strengths(accuracy, recognition_ratio, word_count):
-    """Generate list of strengths based on performance"""
+    """Generate list of strengths based on performance - ONE unique bullet per metric"""
     strengths = []
+    used_feedback = set()  # Track which feedback we've used to avoid duplicates
 
-    # Strengths based on Accuracy
-    if accuracy >= 90:
-        strengths.append("Most words were pronounced clearly.")
-    elif accuracy >= 85:
-        strengths.append("Several sounds were produced clearly and consistently.")
-    elif accuracy >= 75:
-        strengths.append("You maintained clear pronunciation across common sounds.")
+    # Strength #1: Accuracy feedback (choose one)
+    accuracy_feedback = None
+    if accuracy >= 85:
+        accuracy_feedback = "Most individual sounds were produced clearly."
     elif accuracy >= 65:
-        strengths.append("Your pronunciation supported basic understanding.")
+        accuracy_feedback = "Several sounds were produced clearly and consistently."
 
-    # Strengths based on Recognition/Clarity
-    if recognition_ratio >= 0.9:
-        strengths.append("Familiar words were articulated with good clarity.")
-    elif recognition_ratio >= 0.8:
-        strengths.append("Most words were pronounced clearly.")
+    if accuracy_feedback and accuracy_feedback not in used_feedback:
+        strengths.append(accuracy_feedback)
+        used_feedback.add(accuracy_feedback)
+
+    # Strength #2: Recognition Ratio feedback (choose one)
+    recognition_feedback = None
+    if recognition_ratio >= 0.85:
+        recognition_feedback = "Your words were generally easy for the system to recognize, supporting overall understanding."
     elif recognition_ratio >= 0.6:
-        strengths.append("Several sounds were produced clearly and consistently.")
+        recognition_feedback = "Most words were recognized clearly, contributing to message clarity."
 
-    # Strengths based on Text Type/Length (Extended Speech)
-    if word_count >= 15:
-        strengths.append("Your speech showed moments of clear, stable pronunciation.")
-    elif word_count >= 8:
-        strengths.append("You used simple sentences and familiar phrases effectively.")
+    if recognition_feedback and recognition_feedback not in used_feedback:
+        strengths.append(recognition_feedback)
+        used_feedback.add(recognition_feedback)
+
+    # Strength #3: Stability feedback (choose one)
+    stability_feedback = None
+    if word_count >= 10:
+        stability_feedback = "You maintained a steady rhythm across familiar phrases."
     elif word_count >= 5:
-        strengths.append("You used simple sentences and familiar phrases effectively.")
+        stability_feedback = "Your speech showed moments of stable, confident pronunciation."
 
+    if stability_feedback and stability_feedback not in used_feedback:
+        strengths.append(stability_feedback)
+        used_feedback.add(stability_feedback)
+
+    # Ensure we always have at least one strength
     if not strengths:
-        strengths.append("Your speech showed moments of clear, stable pronunciation.")
+        strengths.append("Your speech showed moments of stable, confident pronunciation.")
 
     return strengths
 
@@ -547,22 +556,39 @@ def generate_improvements(mispronounced, accuracy):
         improvements.append("Practice maintaining steady pronunciation across short phrases.")
     elif accuracy < 75:
         improvements.append("Focus on keeping each sound clear from the beginning to the end of the word.")
-        improvements.append("Practice keeping your intonation steady across short phrases.")
     elif accuracy < 85:
         improvements.append("Work on maintaining consistent clarity as phrases become longer.")
-        improvements.append("Focus on letting your voice settle naturally at the end of the phrase.")
     elif accuracy < 95:
-        improvements.append("Pay attention to keeping sounds stable, especially in familiar words.")
         improvements.append("Work on maintaining a smooth, even rhythm while speaking.")
 
-    # Specific Mispronunciation Feedback
+    # Specific Mispronunciation Feedback - SINGLE INTEGRATED SENTENCE
     if mispronounced:
-        for word in mispronounced[:3]:
-            improvements.append(f"Specifically target the pronunciation of {word} to improve clarity and reduce ambiguity.")
+        # Helper function to convert digits to Spanish words
+        def number_to_spanish(word):
+            """Convert digit strings to Spanish words"""
+            digit_map = {
+                '0': 'cero', '1': 'uno', '2': 'dos', '3': 'tres', '4': 'cuatro',
+                '5': 'cinco', '6': 'seis', '7': 'siete', '8': 'ocho', '9': 'nueve',
+                '10': 'diez'
+            }
+            return digit_map.get(word, word)
+
+        # Convert numbers to Spanish and format words
+        formatted_words = [number_to_spanish(word) for word in mispronounced[:5]]
+
+        # Build the sentence with proper formatting (using HTML for bold)
+        if len(formatted_words) == 1:
+            word_list = f"<strong>{formatted_words[0]}</strong>"
+        elif len(formatted_words) == 2:
+            word_list = f"<strong>{formatted_words[0]}</strong> and <strong>{formatted_words[1]}</strong>"
+        else:
+            # Join all but last with commas, then add "and" before the last word
+            word_list = ", ".join([f"<strong>{w}</strong>" for w in formatted_words[:-1]]) + f", and <strong>{formatted_words[-1]}</strong>"
+
+        improvements.append(f"To improve clarity and reduce ambiguity, focus on refining the pronunciation of {word_list}.")
 
     # Final suggestion if no other specific improvements were generated
     if not improvements:
-        improvements.append("Pay attention to keeping sounds stable, especially in familiar words.")
         improvements.append("Work on maintaining a smooth, even rhythm while speaking.")
 
     return improvements
