@@ -295,7 +295,7 @@
                         
                         <!-- Recording Tip Banner -->
                         <div class="recording-tip">
-                            <i class="bi bi-info-circle"></i> For more accurate results, record no less than 15 seconds and up to 1 minute.
+                            <i class="bi bi-info-circle"></i> For more accurate results, record no less than 15 seconds and up to 90 seconds (1.5 minutes).
                         </div>
                         
                         <div class="text-center">
@@ -605,13 +605,13 @@
                     recordingTimer.style.display = 'block';
                     timerInterval = setInterval(updateTimer, 1000);
 
-                    // 1 minute limit
+                    // 90 second limit
                     setTimeout(() => {
                         if (recording) {
                             stopRecording();
-                            recordingStatus.textContent = '1-minute limit reached.';
+                            recordingStatus.textContent = '90-second limit reached.';
                         }
-                    }, 60 * 1000);
+                    }, 90 * 1000);
                 } catch (err) {
                     console.error('Microphone error:', err);
                     recordingStatus.textContent = 'Error accessing microphone. Check permissions.';
