@@ -151,22 +151,63 @@
         .prompt-links {
             display: flex;
             justify-content: center;
-            gap: 15px;
+            gap: 0;
+            width: 100%;
+            max-width: 100%;
         }
-        
+
         .prompt-link {
-            padding: 5px 15px;
-            background-color: var(--color-secondary);
-            color: white;
+            flex: 1;
+            padding: 10px 15px;
+            background-color: white;
+            color: var(--color-accent);
             text-decoration: none;
-            border-radius: 5px;
-            transition: background-color 0.3s;
+            border: 2px solid var(--color-secondary);
+            border-right: none;
+            transition: all 0.3s;
+            text-align: center;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
-        
+
+        .prompt-link:first-child {
+            border-top-left-radius: 8px;
+            border-bottom-left-radius: 8px;
+        }
+
+        .prompt-link:last-child {
+            border-top-right-radius: 8px;
+            border-bottom-right-radius: 8px;
+            border-right: 2px solid var(--color-secondary);
+        }
+
         .prompt-link:hover {
-            background-color: var(--color-accent);
+            background-color: var(--color-primary-light);
+            color: var(--color-accent);
             text-decoration: none;
+        }
+
+        .prompt-link.active {
+            background-color: var(--color-accent);
             color: white;
+            font-weight: 600;
+        }
+
+        /* Responsive tabs for mobile */
+        @media (max-width: 576px) {
+            .prompt-link {
+                padding: 8px 10px;
+                font-size: 0.9rem;
+            }
+        }
+
+        @media (max-width: 400px) {
+            .prompt-link {
+                padding: 8px 8px;
+                font-size: 0.85rem;
+            }
         }
         
         /* Inline prompt display */
@@ -254,7 +295,7 @@
                         
                         <!-- Recording Tip Banner -->
                         <div class="recording-tip">
-                            <i class="bi bi-info-circle"></i> For more accurate results, record no less than 15 seconds and up to 2 minutes.
+                            <i class="bi bi-info-circle"></i> For more accurate results, record no less than 15 seconds and up to 1 minute.
                         </div>
                         
                         <div class="text-center">
@@ -395,14 +436,13 @@
                 advanced: {
                     level: "Advanced",
                     topic: "Topic: Opinion on Technology and Education",
-                    instructions: "Share your thoughts on how technology affects education. Consider:",
+                    instructions: "Share your perspective on how technology influences contemporary education. Address:",
                     list: [
-                        "Benefits and challenges of technology in learning",
-                        "Your personal experiences with online education",
-                        "How you think education will change in the future",
-                        "Recommendations for better integration of technology in schools"
+                        "Benefits and challenges of technological integration in learning",
+                        "Your personal experience with digital education platforms",
+                        "How you envision education will evolve in the future"
                     ],
-                    example: "En mi opinión, la tecnología ha transformado completamente el panorama educativo en las últimas décadas. Por un lado, ofrece herramientas increíbles que facilitan el acceso al conocimiento y permiten experiencias de aprendizaje personalizadas. Los estudiantes pueden aprender a su propio ritmo y acceder a recursos que antes eran imposibles de obtener.\n\nSin embargo, también presenta desafíos significativos. La dependencia excesiva de las pantallas puede afectar la concentración y las habilidades sociales. Además, no todos los estudiantes tienen el mismo acceso a la tecnología, lo que puede aumentar la desigualdad educativa.\n\nBasado en mi experiencia personal con cursos en línea, creo que el futuro de la educación será un modelo híbrido que combine lo mejor de la enseñanza tradicional con las ventajas de la tecnología. Las instituciones educativas deberían invertir en capacitación docente para aprovechar al máximo estas herramientas."
+                    example: "En mi opinión, la tecnología ha transformado radicalmente el panorama educativo contemporáneo. Por un lado, democratiza el acceso al conocimiento y facilita experiencias pedagógicas personalizadas. Los estudiantes pueden aprender a su propio ritmo y acceder a recursos inmediatamente. Sin embargo, también presenta desafíos significativos. La dependencia excesiva de dispositivos digitales puede deteriorar la concentración y las habilidades interpersonales. Además, persiste una brecha digital que enfatiza las desigualdades socioeconómicas. En mi experiencia con modalidades de aprendizaje híbridas, considero que el futuro educativo integrará metodologías tradicionales con innovaciones tecnológicas."
                 }
             };
 
