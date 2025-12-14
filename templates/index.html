@@ -329,7 +329,7 @@
             <h3 class="text-center mb-4">Assessment Results</h3>
             <div id="scoreContainer">
                 <div class="score-display">Score: <span id="scoreValue">0</span>%</div>
-                <div class="level-display">ACTFL Level: <span id="levelValue">Novice</span></div>
+                <div class="level-display">Pronunciation Profile: <span id="levelValue">A</span></div>
                 <div class="score-meter">
                     <div class="score-fill" id="scoreFill" style="width: 0%;">0%</div>
                 </div>
@@ -667,7 +667,18 @@
                     
                     // Show score
                     scoreValue.textContent = data.score;
-                    levelValue.textContent = data.level;
+
+                    // Map ACTFL level to Pronunciation Profile (A, B, or C)
+                    let profile = 'A';  // Default
+                    if (data.level.includes('Novice')) {
+                        profile = 'A';  // Initial Clarity
+                    } else if (data.level.includes('Intermediate')) {
+                        profile = 'B';  // Functional Clarity
+                    } else if (data.level.includes('Advanced') || data.level.includes('Superior') || data.level.includes('Distinguished')) {
+                        profile = 'C';  // Consistent Clarity
+                    }
+                    levelValue.textContent = profile;
+
                     scoreFill.style.width = data.score + '%';
                     scoreFill.textContent = data.score + '%';
                     

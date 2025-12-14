@@ -483,79 +483,88 @@ def generate_feedback(level):
 
     # Fallback to built-in feedback templates
     feedback_templates = {
-        "Distinguished": "Your pronunciation and language use demonstrate Distinguished-level proficiency, comparable to educated native speakers. You exhibit complete mastery of the language with culturally authentic and sophisticated discourse across all contexts.",
-        "Superior": "Your pronunciation is exceptional, demonstrating fluent control and native-like quality. You can effectively discuss abstract topics and support complex arguments with sophisticated language use.",
-        "Advanced High": "Your pronunciation is excellent! You can deal with unexpected complications in social situations, using abundant, detailed, and clear language.",
-        "Advanced Mid": "Your pronunciation is very strong. You can narrate and describe effectively across major time frames, producing coherent paragraphs understandable by most native speakers.",
-        "Advanced Low": "Your pronunciation is understandable by most natives, enabling you to narrate and describe across major time frames and handle routine situations.",
+        # Profile C — Consistent Clarity (80-100)
+        "Distinguished": "Your pronunciation is clear and generally consistent. Small refinements will help improve overall naturalness and ease of understanding.",
+        "Superior": "Your pronunciation is clear and generally consistent. Small refinements will help improve overall naturalness and ease of understanding.",
+        "Advanced High": "Your pronunciation is clear and generally consistent. Small refinements will help improve overall naturalness and ease of understanding.",
+        "Advanced Mid": "Your pronunciation is clear and generally consistent. Small refinements will help improve overall naturalness and ease of understanding.",
+        "Advanced Low": "Your pronunciation is clear and generally consistent. Small refinements will help improve overall naturalness and ease of understanding.",
 
-        "Intermediate High": "Your pronunciation is generally clear, helping you narrate/describe in major time frames using connected discourse (paragraphs), but you may struggle with complex situations.",
-        "Intermediate Mid": "Your pronunciation is clear enough to handle straightforward social situations and discuss details about yourself and your environment (food, travel).",
-        "Intermediate Low": "Your pronunciation is at a functional level, allowing for simple, predictable communication, asking, and answering basic questions.",
+        # Profile B — Functional Clarity (65-79)
+        "Intermediate High": "Your pronunciation is developing steadily, and many sounds are coming through clearly. Continued practice will help you gain more stability and confidence.",
+        "Intermediate Mid": "Your pronunciation is developing steadily, and many sounds are coming through clearly. Continued practice will help you gain more stability and confidence.",
+        "Intermediate Low": "Your pronunciation is developing steadily, and many sounds are coming through clearly. Continued practice will help you gain more stability and confidence.",
 
-        "Novice High": "Your pronunciation shows improvement, enabling short, predictable messages and simple sentences on familiar topics, though you may still need help.",
-        "Novice Mid": "Your pronunciation handles basic needs and personal information, primarily with memorized phrases or simple sentences.",
-        "Novice Low": "Your pronunciation requires development. You are at the earliest stage of language acquisition."
+        # Profile A — Initial Clarity (0-64)
+        "Novice High": "Your pronunciation is still developing, and this attempt reflects early-stage language use. Keep going — consistency builds clarity.",
+        "Novice Mid": "Your pronunciation is still developing, and this attempt reflects early-stage language use. Keep going — consistency builds clarity.",
+        "Novice Low": "Your pronunciation is still developing, and this attempt reflects early-stage language use. Keep going — consistency builds clarity."
     }
     return feedback_templates.get(level, "Your pronunciation shows varying levels of accuracy.")
 
 def generate_strengths(accuracy, recognition_ratio, word_count):
-    """Generate list of strengths based on performance, aligned with 9 ACTFL levels"""
+    """Generate list of strengths based on performance"""
     strengths = []
-    
+
     # Strengths based on Accuracy
     if accuracy >= 90:
-        strengths.append("Excellent, near-native pronunciation accuracy (Advanced High)")
+        strengths.append("Most words were pronounced clearly.")
     elif accuracy >= 85:
-        strengths.append("High degree of accuracy, aiding comprehensibility (Advanced Low/Mid)")
+        strengths.append("Several sounds were produced clearly and consistently.")
     elif accuracy >= 75:
-        strengths.append("Generally clear pronunciation across most common sounds (Intermediate High)")
+        strengths.append("You maintained clear pronunciation across common sounds.")
     elif accuracy >= 65:
-        strengths.append("Sufficient pronunciation for simple, predictable communication (Intermediate Low/Mid)")
-    
+        strengths.append("Your pronunciation supported basic understanding.")
+
     # Strengths based on Recognition/Clarity
     if recognition_ratio >= 0.9:
-        strengths.append("Nearly all words clearly pronounced, leading to high comprehension.")
+        strengths.append("Familiar words were articulated with good clarity.")
     elif recognition_ratio >= 0.8:
-        strengths.append("Most words pronounced clearly enough for connected discourse.")
+        strengths.append("Most words were pronounced clearly.")
     elif recognition_ratio >= 0.6:
-        strengths.append("Basic phrases and common words are clearly articulated.")
+        strengths.append("Several sounds were produced clearly and consistently.")
 
     # Strengths based on Text Type/Length (Extended Speech)
     if word_count >= 15:
-        strengths.append("Ability to produce extended, detailed paragraphs of connected discourse.")
+        strengths.append("Your speech showed moments of clear, stable pronunciation.")
     elif word_count >= 8:
-        strengths.append("Good use of connected discourse (multiple sentences) in major time frames.")
+        strengths.append("You used simple sentences and familiar phrases effectively.")
     elif word_count >= 5:
-        strengths.append("Effective use of simple sentences and phrases.")
-        
+        strengths.append("You used simple sentences and familiar phrases effectively.")
+
     if not strengths:
-        strengths.append("Initial attempts at speech were successfully recognized.")
-        
+        strengths.append("Your speech showed moments of clear, stable pronunciation.")
+
     return strengths
 
 def generate_improvements(mispronounced, accuracy):
-    """Generate suggested areas for improvement, aligned with 9 ACTFL levels"""
+    """Generate suggested areas for improvement"""
     improvements = []
-    
+
     # Generic suggestions based on accuracy score
     if accuracy < 60:
-        improvements.append("Prioritize basic needs and personal information; focus on highly frequent words and memorized phrases (Novice Low/Mid).")
+        improvements.append("Continue building basic vocabulary and common greetings.")
+        improvements.append("Practice maintaining steady pronunciation across short phrases.")
     elif accuracy < 75:
-        improvements.append("Focus on simple sentence structures and clarity to move beyond the survival level (Intermediate Low).")
+        improvements.append("Focus on keeping each sound clear from the beginning to the end of the word.")
+        improvements.append("Practice keeping your intonation steady across short phrases.")
     elif accuracy < 85:
-        improvements.append("Work on connecting simple sentences into paragraphs and mastering descriptions across major time frames (Intermediate High).")
+        improvements.append("Work on maintaining consistent clarity as phrases become longer.")
+        improvements.append("Focus on letting your voice settle naturally at the end of the phrase.")
     elif accuracy < 95:
-        improvements.append("Practice handling unexpected complications and refining subtle intonation for native-like fluency (Advanced Low/Mid).")
+        improvements.append("Pay attention to keeping sounds stable, especially in familiar words.")
+        improvements.append("Work on maintaining a smooth, even rhythm while speaking.")
 
     # Specific Mispronunciation Feedback
     if mispronounced:
-        improvements.append(f"Specifically target the pronunciation of: {', '.join(mispronounced[:3])} to improve clarity and reduce ambiguity.")
-    
+        for word in mispronounced[:3]:
+            improvements.append(f"Specifically target the pronunciation of {word} to improve clarity and reduce ambiguity.")
+
     # Final suggestion if no other specific improvements were generated
     if not improvements:
-        improvements.append("Maintain high-level practice by engaging in complex social situations and abstract topics.")
-        
+        improvements.append("Pay attention to keeping sounds stable, especially in familiar words.")
+        improvements.append("Work on maintaining a smooth, even rhythm while speaking.")
+
     return improvements
 
 def generate_corrected_text(transcribed_text):

@@ -10,7 +10,7 @@
     "pronunciation": "Strongly influenced by L1 and frequently interferes with understanding",
     "communication_strategies": "Depends on gestures, repetition, or L1 support",
     "sociocultural_use": "Limited to rehearsed formulas",
-    "feedback_template": "Your pronunciation requires development. You are at the earliest stage of language acquisition. Focus on building basic vocabulary and simple greetings."
+    "feedback_template": "Your pronunciation is still developing, and this attempt reflects early-stage language use. Keep going — consistency builds clarity."
   },
   "NOVICE_MID": {
     "name": "Novice Mid",
@@ -23,7 +23,7 @@
     "pronunciation": "Shows strong L1 influence requiring a sympathetic listener",
     "communication_strategies": "Include repeating or recycling interlocutor language",
     "sociocultural_use": "Limited to basic courtesy expressions",
-    "feedback_template": "Your pronunciation handles basic needs and personal information, primarily with memorized phrases or simple sentences. Work on expanding your vocabulary and sentence variety."
+    "feedback_template": "Your pronunciation is still developing, and this attempt reflects early-stage language use. Keep going — consistency builds clarity."
   },
   "NOVICE_HIGH": {
     "name": "Novice High",
@@ -36,7 +36,7 @@
     "pronunciation": "Generally intelligible though non-native",
     "communication_strategies": "Include limited rephrasing",
     "sociocultural_use": "Includes basic turn-taking and routine politeness",
-    "feedback_template": "Your pronunciation shows improvement, enabling short, predictable messages and simple sentences on familiar topics. Focus on connecting your sentences and improving grammar consistency."
+    "feedback_template": "Your pronunciation is still developing, and this attempt reflects early-stage language use. Keep going — consistency builds clarity."
   },
   "INTERMEDIATE_LOW": {
     "name": "Intermediate Low",
@@ -49,7 +49,7 @@
     "pronunciation": "Intelligible in familiar situations",
     "communication_strategies": "Include basic circumlocution and repair attempts",
     "sociocultural_use": "Functional but inconsistent",
-    "feedback_template": "Your pronunciation is at a functional level, allowing for simple, predictable communication, asking, and answering basic questions. Work on organizing your discourse and mastering verb tenses."
+    "feedback_template": "Your pronunciation is developing steadily, and many sounds are coming through clearly. Continued practice will help you gain more stability and confidence."
   },
   "INTERMEDIATE_MID": {
     "name": "Intermediate Mid",
@@ -62,7 +62,7 @@
     "pronunciation": "Generally clear without listener strain",
     "communication_strategies": "Include rephrasing, clarification requests, and compensation",
     "sociocultural_use": "Appropriate in everyday contexts",
-    "feedback_template": "Your pronunciation is clear enough to handle straightforward social situations and discuss details about yourself and your environment. Continue practicing past tense and expanding your vocabulary range."
+    "feedback_template": "Your pronunciation is developing steadily, and many sounds are coming through clearly. Continued practice will help you gain more stability and confidence."
   },
   "INTERMEDIATE_HIGH": {
     "name": "Intermediate High",
@@ -75,7 +75,7 @@
     "pronunciation": "Fluent with minimal interference",
     "communication_strategies": "Well developed to maintain interaction",
     "sociocultural_use": "Mostly appropriate with growing register awareness",
-    "feedback_template": "Your pronunciation is generally clear, helping you narrate and describe in major time frames using connected discourse. Focus on maintaining consistency when discussing complex topics and strengthening your command of verb tenses."
+    "feedback_template": "Your pronunciation is developing steadily, and many sounds are coming through clearly. Continued practice will help you gain more stability and confidence."
   },
   "ADVANCED_LOW": {
     "name": "Advanced Low",
@@ -88,7 +88,7 @@
     "pronunciation": "Supports comprehension with minimal effort from listener",
     "communication_strategies": "Used effectively to maintain communication",
     "sociocultural_use": "Appropriate in most personal and public contexts",
-    "feedback_template": "Your pronunciation is understandable by most natives, enabling you to narrate and describe across major time frames and handle routine situations. Work on maintaining consistency in complex situations and refining subtle aspects of pronunciation."
+    "feedback_template": "Your pronunciation is clear and generally consistent. Small refinements will help improve overall naturalness and ease of understanding."
   },
   "ADVANCED_MID": {
     "name": "Advanced Mid",
@@ -101,7 +101,7 @@
     "pronunciation": "Supports effortless comprehension",
     "communication_strategies": "Used flexibly and effectively",
     "sociocultural_use": "Consistently appropriate across personal and public contexts",
-    "feedback_template": "Your pronunciation is very strong. You can narrate and describe effectively across major time frames, producing coherent paragraphs understandable by most native speakers. Continue practicing in diverse contexts to reach Advanced High."
+    "feedback_template": "Your pronunciation is clear and generally consistent. Small refinements will help improve overall naturalness and ease of understanding."
   },
   "ADVANCED_HIGH": {
     "name": "Advanced High",
@@ -114,7 +114,7 @@
     "pronunciation": "Fully supports effortless comprehension with near-native quality",
     "communication_strategies": "Sophisticated and strategic",
     "sociocultural_use": "Highly appropriate with strong register awareness",
-    "feedback_template": "Your pronunciation is excellent! You can deal with unexpected complications in social situations, using abundant, detailed, and clear language. You demonstrate near-native proficiency."
+    "feedback_template": "Your pronunciation is clear and generally consistent. Small refinements will help improve overall naturalness and ease of understanding."
   },
   "SUPERIOR": {
     "name": "Superior",
@@ -127,7 +127,7 @@
     "pronunciation": "Fluent and controlled with native-like quality",
     "communication_strategies": "Sophisticated and purposeful",
     "sociocultural_use": "Accurate across formal and informal settings",
-    "feedback_template": "Your pronunciation is exceptional, demonstrating fluent control and native-like quality. You can effectively discuss abstract topics and support complex arguments with sophisticated language use."
+    "feedback_template": "Your pronunciation is clear and generally consistent. Small refinements will help improve overall naturalness and ease of understanding."
   },
   "DISTINGUISHED": {
     "name": "Distinguished",
@@ -140,6 +140,6 @@
     "pronunciation": "Effortless and indistinguishable from educated native speakers",
     "communication_strategies": "Strategic, deliberate, and highly sophisticated",
     "sociocultural_use": "Culturally authentic and audience-specific with complete mastery",
-    "feedback_template": "Your pronunciation and language use demonstrate Distinguished-level proficiency, comparable to educated native speakers. You exhibit complete mastery of the language with culturally authentic and sophisticated discourse across all contexts."
+    "feedback_template": "Your pronunciation is clear and generally consistent. Small refinements will help improve overall naturalness and ease of understanding."
   }
 }
