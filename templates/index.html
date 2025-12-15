@@ -248,6 +248,25 @@
             color: var(--color-teal-dark);
             font-size: 0.9rem;
         }
+
+        /* Ensure feedback text is readable with high contrast */
+        #feedbackText,
+        #strengthsList,
+        #improvementsList,
+        #profileDescription,
+        #transcribedText {
+            color: #333333; /* Dark gray/black for high contrast and readability */
+        }
+
+        #strengthsList li,
+        #improvementsList li {
+            color: #333333;
+        }
+
+        #improvementsList li strong {
+            color: #2d5016; /* Dark high-contrast green for emphasized words */
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -262,11 +281,11 @@
             <div class="card-body">
                 <!-- Prompt Section -->
                 <div class="prompt-section">
-                    <p class="prompt-title">Need inspiration? Click a level below for a prompt text:</p>
+                    <p class="prompt-title">Need inspiration? Select a prompt length:</p>
                     <div class="prompt-links">
-                        <a href="#" class="prompt-link" data-level="beginner">Beginner</a>
-                        <a href="#" class="prompt-link" data-level="intermediate">Intermediate</a>
-                        <a href="#" class="prompt-link" data-level="advanced">Advanced</a>
+                        <a href="#" class="prompt-link" data-level="beginner">Short Prompt</a>
+                        <a href="#" class="prompt-link" data-level="intermediate">Medium Prompt</a>
+                        <a href="#" class="prompt-link" data-level="advanced">Extended Prompt</a>
                     </div>
                 </div>
                 
@@ -291,12 +310,7 @@
                 
                 <div class="tab-content">
                     <div class="tab-pane fade show active" id="record">
-                        <p>Speak freely in Spanish to get a pronunciation assessment.</p>
-                        
-                        <!-- Recording Tip Banner -->
-                        <div class="recording-tip">
-                            <i class="bi bi-info-circle"></i> For more accurate results, record no less than 15 seconds and up to 90 seconds (1.5 minutes).
-                        </div>
+                        <p>For more accurate results, record no less than 15 seconds and up to 90 seconds (1.5 minutes) of spoken Spanish. The system analyzes clarity, word recognition, and speech stability.</p>
                         
                         <div class="text-center">
                             <button id="recordButton" class="btn btn-record">
@@ -330,7 +344,7 @@
             <div id="scoreContainer">
                 <div class="level-display"><span id="profileDescription"></span></div>
                 <div class="score-meter">
-                    <div class="score-fill" id="scoreFill" style="width: 0%;">Pronunciation Clarity</div>
+                    <div class="score-fill" id="scoreFill" style="width: 0%;">Estimated Pronunciation Clarity: 0%</div>
                 </div>
             </div>
             
@@ -342,7 +356,22 @@
                     <p id="transcribedText" class="mb-0"></p>
                 </div>
             </div>
-            
+
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0">Feedback</h5>
+                </div>
+                <div class="card-body">
+                    <p id="feedbackText" class="mb-2"></p>
+
+                    <h6 class="mt-4">Strengths:</h6>
+                    <ul id="strengthsList"></ul>
+
+                    <h6 class="mt-3">Where to Focus Next:</h6>
+                    <ul id="improvementsList"></ul>
+                </div>
+            </div>
+
             <div class="card mb-3">
                 <div class="card-header">
                     <h5 class="mb-0">Automated Pronunciation Example</h5>
@@ -352,21 +381,6 @@
                         <source src="" type="audio/mp3">
                         Your browser does not support audio playback.
                     </audio>
-                </div>
-            </div>
-            
-            <div class="card mb-3">
-                <div class="card-header">
-                    <h5 class="mb-0">Feedback</h5>
-                </div>
-                <div class="card-body">
-                    <p id="feedbackText" class="mb-2"></p>
-                    
-                    <h6 class="mt-4">Strengths:</h6>
-                    <ul id="strengthsList"></ul>
-                    
-                    <h6 class="mt-3">Where to Focus Next:</h6>
-                    <ul id="improvementsList"></ul>
                 </div>
             </div>
             
@@ -403,7 +417,7 @@
             // NEW: Define prompt data structure
             const promptData = {
                 beginner: {
-                    level: "Beginner",
+                    level: "Short",
                     topic: "Topic: Introduce Yourself",
                     instructions: "Talk about yourself in Spanish. Try to include:",
                     list: [
@@ -415,7 +429,7 @@
                     example: "Hola, me llamo María y soy de California. Tengo veinticinco años y soy estudiante. Hablo inglés y estoy aprendiendo español. Me gusta leer, cocinar, y pasar tiempo con mis amigos."
                 },
                 intermediate: {
-                    level: "Intermediate",
+                    level: "Medium",
                     topic: "Topic: Describe Your Day",
                     instructions: "Talk about your typical day or what you did yesterday. Try to include:",
                     list: [
@@ -427,7 +441,7 @@
                     example: "Ayer me desperté a las siete de la mañana. Primero, tomé un café y desayuné con mi familia. Después, fui a trabajar en autobús. Tuve una reunión importante con mis colegas sobre un nuevo proyecto. Por la tarde, almorcé con mi amigo Juan en un restaurante cerca de la oficina. La comida estaba deliciosa. Regresé a casa a las seis y cené con mi familia. Estaba cansado pero contento."
                 },
                 advanced: {
-                    level: "Advanced",
+                    level: "Extended",
                     topic: "Topic: Opinion on Technology and Education",
                     instructions: "Share your perspective on how technology influences contemporary education. Address:",
                     list: [
@@ -670,6 +684,7 @@
                     profileDescription.textContent = description;
 
                     scoreFill.style.width = data.score + '%';
+                    scoreFill.textContent = 'Estimated Pronunciation Clarity: ' + Math.round(data.score) + '%';
 
                     // Show transcription
                     transcribedText.textContent = data.transcribed_text;
