@@ -615,13 +615,13 @@
                     recordingTimer.style.display = 'block';
                     timerInterval = setInterval(updateTimer, 1000);
 
-                    // 60 second limit
+                    // 90 second limit
                     setTimeout(() => {
                         if (recording) {
                             stopRecording();
-                            recordingStatus.textContent = '60-second limit reached.';
+                            recordingStatus.textContent = '90-second limit reached.';
                         }
-                    }, 60 * 1000);
+                    }, 90 * 1000);
                 } catch (err) {
                     console.error('Microphone error:', err);
                     recordingStatus.textContent = 'Error accessing microphone. Check permissions.';
