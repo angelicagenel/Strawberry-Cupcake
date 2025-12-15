@@ -158,23 +158,17 @@ logger.info(f"Dictionary loaded with {len(SPANISH_DICT)} words")
 logger.info(f"ACTFL criteria loaded: {'Yes' if ACTFL_CRITERIA else 'No (using built-in)'}")
 
 def transcribe_audio(audio_content):
-    """Transcribe Spanish audio using Google Cloud Speech-to-Text with support for up to 90 seconds"""
+    """Transcribe Spanish audio using Google Cloud Speech-to-Text with support for up to 2 minutes"""
     client = speech.SpeechClient()
 
-    # Upload audio to Cloud Storage for long-running recognition
-    if bucket:
-        blob_name = f"temp_audio/{uuid.uuid4()}.webm"
-        blob = bucket.blob(blob_name)
-        blob.upload_from_bytes(audio_content)
+    # Check audio size to determine which method to use
+    # Approximate threshold: 300 KB for ~50 seconds at typical bitrates (32-64 kbps for speech)
+    SIZE_THRESHOLD = 300 * 1024  # 300 KB
+    audio_size = len(audio_content)
 
-        # Create GCS URI
-        gcs_uri = f"gs://{BUCKET_NAME}/{blob_name}"
-        audio = speech.RecognitionAudio(uri=gcs_uri)
-    else:
-        # Fallback to inline audio (works up to 60 seconds)
-        audio = speech.RecognitionAudio(content=audio_content)
+    logger.info(f"Audio size: {audio_size} bytes ({audio_size / 1024:.1f} KB)")
 
-    # Configuration for long audio
+    # Configuration for audio recognition
     config = speech.RecognitionConfig(
         encoding=speech.RecognitionConfig.AudioEncoding.ENCODING_UNSPECIFIED,
         sample_rate_hertz=48000,
@@ -187,26 +181,58 @@ def transcribe_audio(audio_content):
     )
 
     try:
-        # Use long_running_recognize for audio up to 90 seconds
-        operation = client.long_running_recognize(config=config, audio=audio)
+        # For shorter audio (<=50 seconds), use standard recognize()
+        if audio_size <= SIZE_THRESHOLD:
+            logger.info("Using standard recognize() for shorter audio")
+            audio = speech.RecognitionAudio(content=audio_content)
+            response = client.recognize(config=config, audio=audio)
 
-        # Wait for operation to complete (timeout 300 seconds to allow processing of longer recordings)
-        response = operation.result(timeout=300)
+            if response.results:
+                transcript = " ".join(result.alternatives[0].transcript for result in response.results)
+                logger.info(f"Transcription successful: '{transcript}'")
+                return transcript
+            else:
+                logger.warning("No transcription results from recognize()")
+                return ""
 
-        # Clean up temporary file if uploaded to bucket
-        if bucket:
+        # For longer audio (>50 seconds), use long_running_recognize() with Cloud Storage
+        else:
+            logger.info("Using long_running_recognize() for longer audio")
+
+            if not bucket:
+                logger.error("Bucket not available for long audio transcription")
+                return ""
+
+            # Upload audio to Cloud Storage
+            blob_name = f"temp_audio/{uuid.uuid4()}.webm"
+            blob = bucket.blob(blob_name)
+            blob.upload_from_bytes(audio_content)
+            logger.info(f"Uploaded audio to gs://{BUCKET_NAME}/{blob_name}")
+
+            # Create GCS URI
+            gcs_uri = f"gs://{BUCKET_NAME}/{blob_name}"
+            audio = speech.RecognitionAudio(uri=gcs_uri)
+
+            # Use long_running_recognize for audio up to 2 minutes
+            operation = client.long_running_recognize(config=config, audio=audio)
+
+            # Wait for operation to complete (timeout 300 seconds)
+            response = operation.result(timeout=300)
+
+            # Clean up temporary file
             try:
                 blob.delete()
-            except:
-                pass
+                logger.info(f"Deleted temporary file: {blob_name}")
+            except Exception as cleanup_error:
+                logger.warning(f"Could not delete temporary file: {cleanup_error}")
 
-        if response.results:
-            transcript = " ".join(result.alternatives[0].transcript for result in response.results)
-            logger.info(f"Transcription successful: '{transcript}'")
-            return transcript
-        else:
-            logger.warning("No transcription results")
-            return ""
+            if response.results:
+                transcript = " ".join(result.alternatives[0].transcript for result in response.results)
+                logger.info(f"Transcription successful: '{transcript}'")
+                return transcript
+            else:
+                logger.warning("No transcription results from long_running_recognize()")
+                return ""
 
     except Exception as e:
         # Check if this is a timeout-related exception
@@ -217,21 +243,23 @@ def transcribe_audio(audio_content):
         )
 
         if is_timeout:
-            logger.error(f"Timeout error in long_running_recognize: {str(e)}")
-            # Return empty string to indicate technical failure (not pronunciation issue)
+            logger.error(f"Timeout error during transcription: {str(e)}")
             return ""
 
-        logger.error(f"Error in long_running_recognize: {str(e)}")
+        logger.error(f"Error during transcription: {str(e)}")
 
-        # Fallback to standard recognize for shorter audio (only for non-timeout errors)
-        try:
-            audio_inline = speech.RecognitionAudio(content=audio_content)
-            response = client.recognize(config=config, audio=audio_inline)
-            if response.results:
-                transcript = " ".join(result.alternatives[0].transcript for result in response.results)
-                return transcript
-        except Exception as fallback_error:
-            logger.error(f"Fallback also failed: {str(fallback_error)}")
+        # For longer audio that failed, try fallback to standard recognize if size permits
+        if audio_size > SIZE_THRESHOLD and audio_size <= 10 * 1024 * 1024:
+            logger.info("Attempting fallback to standard recognize()")
+            try:
+                audio_inline = speech.RecognitionAudio(content=audio_content)
+                response = client.recognize(config=config, audio=audio_inline)
+                if response.results:
+                    transcript = " ".join(result.alternatives[0].transcript for result in response.results)
+                    logger.info(f"Fallback transcription successful: '{transcript}'")
+                    return transcript
+            except Exception as fallback_error:
+                logger.error(f"Fallback also failed: {str(fallback_error)}")
 
         return ""
 
