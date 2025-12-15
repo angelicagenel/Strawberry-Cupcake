@@ -548,8 +548,15 @@
                         fileExtension = 'wav';
                     }
 
-                    // Create MediaRecorder with detected MIME type
-                    mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
+                    // Create MediaRecorder with detected MIME type and explicit bitrate
+                    // Use 32 kbps bitrate to ensure predictable file sizes and compatibility
+                    // with inline transcription (keeps 60s recordings under 240 KB)
+                    const recorderOptions = {
+                        mimeType: mimeType,
+                        audioBitsPerSecond: 32000  // 32 kbps for speech
+                    };
+
+                    mediaRecorder = new MediaRecorder(stream, recorderOptions);
                     audioChunks = [];
 
                     mediaRecorder.addEventListener('dataavailable', e => {
