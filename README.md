@@ -1,4 +1,4 @@
-# Spanish Pronunciation Feedback Tool 🍓⋆.°
+# Spanish Pronunciation Coaching Tool 🍓⋆.°
 
 ## License
 
