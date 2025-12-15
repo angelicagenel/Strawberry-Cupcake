@@ -135,64 +135,59 @@
         
         /* Style for the prompt section */
         .prompt-section {
-            background-color: var(--color-primary-light);
-            border-radius: 5px;
-            padding: 12px;
+            background-color: transparent;
+            border-radius: 0;
+            padding: 0 0 20px 0;
             margin-bottom: 20px;
             text-align: center;
         }
-        
+
         .prompt-title {
-            color: var(--color-accent);
-            font-weight: bold;
-            margin-bottom: 10px;
+            color: var(--color-text-dark);
+            font-weight: 500;
+            margin-bottom: 15px;
+            font-size: 0.95rem;
         }
         
         .prompt-links {
             display: flex;
             justify-content: center;
-            gap: 0;
+            gap: 8px;
             width: 100%;
             max-width: 100%;
         }
 
         .prompt-link {
             flex: 1;
-            padding: 10px 15px;
-            background-color: white;
-            color: var(--color-accent);
+            padding: 12px 20px;
+            background-color: #f5f5f5;
+            color: #666;
             text-decoration: none;
-            border: 2px solid var(--color-secondary);
-            border-right: none;
-            transition: all 0.3s;
+            border: none;
+            border-radius: 6px;
+            transition: all 0.3s ease;
             text-align: center;
             font-weight: 500;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-        }
-
-        .prompt-link:first-child {
-            border-top-left-radius: 8px;
-            border-bottom-left-radius: 8px;
-        }
-
-        .prompt-link:last-child {
-            border-top-right-radius: 8px;
-            border-bottom-right-radius: 8px;
-            border-right: 2px solid var(--color-secondary);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            cursor: pointer;
         }
 
         .prompt-link:hover {
-            background-color: var(--color-primary-light);
-            color: var(--color-accent);
+            background-color: #e8e8e8;
+            color: #555;
             text-decoration: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+            transform: translateY(-1px);
         }
 
         .prompt-link.active {
             background-color: var(--color-accent);
             color: white;
             font-weight: 600;
+            box-shadow: 0 2px 6px rgba(219, 101, 101, 0.3);
         }
 
         /* Responsive tabs for mobile */
@@ -212,18 +207,18 @@
         
         /* Inline prompt display */
         #promptDisplay {
-            background-color: white;
-            border: 1px solid var(--color-secondary);
-            border-radius: 10px;
+            background-color: var(--color-primary-light);
+            border: none;
+            border-radius: 8px;
             margin-bottom: 20px;
         }
 
         #promptDisplay .card-body {
-            padding: 15px;
+            padding: 20px;
         }
         
         .example-text {
-            background-color: var(--color-primary-light);
+            background-color: white;
             border-radius: 5px;
             padding: 15px;
             margin-top: 10px;
@@ -301,8 +296,6 @@
                 
                 <div class="tab-content">
                     <div class="tab-pane fade show active" id="record">
-                        <p>For more accurate results, record no less than 15 seconds and up to 60 seconds (1.0 minute) of spoken Spanish. The system analyzes clarity, word recognition, and speech stability.</p>
-                        
                         <div class="text-center">
                             <button id="recordButton" class="btn btn-record">
                                 <i class="bi bi-mic"></i> Start Recording
@@ -320,7 +313,7 @@
         </div>
 
         <div class="d-grid gap-2">
-            <button id="submitButton" class="btn btn-submit" disabled>Analyze Pronunciation</button>
+            <button id="submitButton" class="btn btn-submit" disabled style="display: none;">Analyze Pronunciation</button>
         </div>
 
         <div id="loadingIndicator" class="text-center my-4" style="display: none;">
@@ -583,7 +576,7 @@
                                 <div class="alert alert-success">
                                     <i class="bi bi-check-circle"></i> Recording saved successfully!
                                     <br>File size: ${(audioBlob.size / 1024).toFixed(2)} KB
-                                    <br>Click "Analyze Pronunciation" to continue.
+                                    <br>Analyzing pronunciation...
                                 </div>
                             `;
                             audioPreview.style.display = 'block';
@@ -599,6 +592,11 @@
                         }
 
                         submitButton.disabled = false;
+
+                        // Auto-trigger analysis after recording stops
+                        setTimeout(() => {
+                            submitButton.click();
+                        }, 500);
                     });
 
                     // Use timeslice for iOS compatibility
