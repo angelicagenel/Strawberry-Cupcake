@@ -709,11 +709,12 @@
                         improvementsList.appendChild(li);
                     });
 
-                    // Hide the Analyze button after feedback is displayed
-                    submitButton.style.display = 'none';
-
+                    // Display the results first
                     resultContainer.style.display = 'block';
                     resultContainer.scrollIntoView({ behavior: 'smooth' });
+
+                    // Hide the Analyze button ONLY after feedback is displayed
+                    submitButton.style.display = 'none';
                 })
                 .catch(error => {
                     loadingIndicator.style.display = 'none';
