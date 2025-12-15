@@ -162,11 +162,16 @@ def transcribe_audio(audio_content):
     client = speech.SpeechClient()
 
     # Check audio size to determine which method to use
-    # Approximate threshold: 300 KB for ~50 seconds at typical bitrates (32-64 kbps for speech)
-    SIZE_THRESHOLD = 300 * 1024  # 300 KB
+    # Conservative threshold: 200 KB ensures ~50-60 seconds at 32 kbps stays within
+    # Google's synchronous recognize() limits, while longer recordings use long_running_recognize()
+    SIZE_THRESHOLD = 200 * 1024  # 200 KB (conservative for reliability)
     audio_size = len(audio_content)
 
     logger.info(f"Audio size: {audio_size} bytes ({audio_size / 1024:.1f} KB)")
+
+    # Calculate estimated duration based on 32 kbps bitrate
+    estimated_duration = (audio_size * 8) / 32000  # seconds
+    logger.info(f"Estimated duration at 32 kbps: {estimated_duration:.1f} seconds")
 
     # Configuration for audio recognition
     config = speech.RecognitionConfig(
@@ -181,27 +186,41 @@ def transcribe_audio(audio_content):
     )
 
     try:
-        # For shorter audio (<=50 seconds), use standard recognize()
+        # For shorter audio (<=50 seconds at 32kbps), use fast inline recognize()
         if audio_size <= SIZE_THRESHOLD:
-            logger.info("Using standard recognize() for shorter audio")
+            logger.info(f"Using fast inline recognize() method (audio size: {audio_size / 1024:.1f} KB <= {SIZE_THRESHOLD / 1024:.0f} KB threshold)")
             audio = speech.RecognitionAudio(content=audio_content)
             response = client.recognize(config=config, audio=audio)
 
             if response.results:
                 transcript = " ".join(result.alternatives[0].transcript for result in response.results)
-                logger.info(f"Transcription successful: '{transcript}'")
+                logger.info(f"Inline transcription successful ({len(transcript)} chars): '{transcript[:100]}...'")
                 return transcript
             else:
-                logger.warning("No transcription results from recognize()")
+                logger.warning("No transcription results from inline recognize()")
                 return ""
 
-        # For longer audio (>50 seconds), use long_running_recognize() with Cloud Storage
+        # For longer audio (>50 seconds at 32kbps), use long_running_recognize() with Cloud Storage
         else:
-            logger.info("Using long_running_recognize() for longer audio")
+            logger.info(f"Using long_running_recognize() method (audio size: {audio_size / 1024:.1f} KB > {SIZE_THRESHOLD / 1024:.0f} KB threshold, est. {estimated_duration:.1f}s)")
 
             if not bucket:
-                logger.error("Bucket not available for long audio transcription")
-                return ""
+                logger.warning("Bucket not available for long audio transcription, attempting fallback to inline recognize()")
+                # Fallback: try inline recognize() even though it might fail for very long audio
+                # This is better than returning empty string
+                try:
+                    audio = speech.RecognitionAudio(content=audio_content)
+                    response = client.recognize(config=config, audio=audio)
+                    if response.results:
+                        transcript = " ".join(result.alternatives[0].transcript for result in response.results)
+                        logger.info(f"Fallback inline transcription successful: '{transcript}'")
+                        return transcript
+                    else:
+                        logger.error("Fallback inline transcription returned no results")
+                        return ""
+                except Exception as fallback_error:
+                    logger.error(f"Fallback inline transcription failed: {str(fallback_error)}")
+                    return ""
 
             # Upload audio to Cloud Storage
             blob_name = f"temp_audio/{uuid.uuid4()}.webm"
@@ -228,7 +247,7 @@ def transcribe_audio(audio_content):
 
             if response.results:
                 transcript = " ".join(result.alternatives[0].transcript for result in response.results)
-                logger.info(f"Transcription successful: '{transcript}'")
+                logger.info(f"Long-running transcription successful ({len(transcript)} chars): '{transcript[:100]}...'")
                 return transcript
             else:
                 logger.warning("No transcription results from long_running_recognize()")
