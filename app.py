@@ -190,8 +190,8 @@ def transcribe_audio(audio_content):
         # Use long_running_recognize for audio up to 90 seconds
         operation = client.long_running_recognize(config=config, audio=audio)
 
-        # Wait for operation to complete (timeout 120 seconds to allow processing)
-        response = operation.result(timeout=120)
+        # Wait for operation to complete (timeout 300 seconds to allow processing of longer recordings)
+        response = operation.result(timeout=300)
 
         # Clean up temporary file if uploaded to bucket
         if bucket:
@@ -209,9 +209,21 @@ def transcribe_audio(audio_content):
             return ""
 
     except Exception as e:
+        # Check if this is a timeout-related exception
+        is_timeout = (
+            isinstance(e, (TimeoutError, exceptions.DeadlineExceeded)) or
+            'timeout' in str(e).lower() or
+            'deadline exceeded' in str(e).lower()
+        )
+
+        if is_timeout:
+            logger.error(f"Timeout error in long_running_recognize: {str(e)}")
+            # Return empty string to indicate technical failure (not pronunciation issue)
+            return ""
+
         logger.error(f"Error in long_running_recognize: {str(e)}")
 
-        # Fallback to standard recognize for shorter audio
+        # Fallback to standard recognize for shorter audio (only for non-timeout errors)
         try:
             audio_inline = speech.RecognitionAudio(content=audio_content)
             response = client.recognize(config=config, audio=audio_inline)
@@ -758,16 +770,16 @@ def process_audio():
             return jsonify({
             "score": 70,
             "level": "Novice Mid",
-            "transcribed_text": "No se pudo transcribir el audio. Por favor, intente de nuevo hablando claramente en español.",
-            "corrected_text": "No transcription available. Try speaking more slowly and clearly in Spanish.",
-            "error": "Could not transcribe audio. Please try again with clearer pronunciation.",
-            "feedback": "Our system had difficulty understanding your speech. This could be due to background noise, speaking too quietly, or using vocabulary that's difficult to recognize.",
+            "transcribed_text": "No se pudo transcribir el audio. Por favor, intente de nuevo con una grabación un poco más corta.",
+            "corrected_text": "No transcription available. Please try again with a slightly shorter recording.",
+            "error": "Sorry — we're experiencing a temporary technical issue.\nPlease try again with a slightly shorter recording.",
+            "feedback": "Our system had difficulty processing your recording. This could be due to a temporary technical issue or the recording being too long.",
             "strengths": ["Attempt to speak in Spanish"],
         "areas_for_improvement": [
-            "Speak clearly and at a moderate pace", 
+            "Try recording for 60-90 seconds or less",
+            "Ensure stable internet connection",
             "Use a good quality microphone",
-            "Reduce background noise",
-            "Try the Beginner prompt first to test your setup"
+            "Reduce background noise"
             ],
             "tts_audio_url": None
         })
