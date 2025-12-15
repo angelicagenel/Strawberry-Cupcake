@@ -334,7 +334,7 @@
             <div id="scoreContainer">
                 <div class="level-display"><span id="profileDescription"></span></div>
                 <div class="score-meter">
-                    <div class="score-fill" id="scoreFill" style="width: 0%;">Estimated Pronunciation Clarity: 0%</div>
+                    <div class="score-fill" id="scoreFill" style="width: 0%;">Estimated Clarity: 0%</div>
                 </div>
             </div>
             
@@ -694,7 +694,7 @@
                     profileDescription.textContent = description;
 
                     scoreFill.style.width = data.score + '%';
-                    scoreFill.textContent = 'Estimated Pronunciation Clarity: ' + Math.round(data.score) + '%';
+                    scoreFill.textContent = 'Estimated Clarity: ' + Math.round(data.score) + '%';
 
                     // Show transcription
                     transcribedText.textContent = data.transcribed_text;
