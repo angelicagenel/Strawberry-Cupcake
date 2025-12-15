@@ -664,6 +664,9 @@
                 .then(data => {
                     loadingIndicator.style.display = 'none';
                     if (data.error) {
+                        // Reset UI state to allow retry
+                        submitButton.disabled = false;
+                        submitButton.style.display = 'block';
                         alert('Error: ' + data.error);
                         return;
                     }
@@ -718,6 +721,9 @@
                 })
                 .catch(error => {
                     loadingIndicator.style.display = 'none';
+                    // Reset UI state to allow retry
+                    submitButton.disabled = false;
+                    submitButton.style.display = 'block';
                     alert('Server error: ' + error);
                 });
             });
