@@ -217,13 +217,7 @@
             border-radius: 10px;
             margin-bottom: 20px;
         }
-        
-        #promptDisplay .card-header {
-            background-color: var(--color-primary-light);
-            border-top-left-radius: 10px;
-            border-top-right-radius: 10px;
-        }
-        
+
         #promptDisplay .card-body {
             padding: 15px;
         }
@@ -291,11 +285,8 @@
                 
                 <!-- NEW: Inline Prompt Display -->
                 <div id="promptDisplay" class="card mb-3" style="display: none;">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0"><span id="promptLevelTitle">Beginner</span> Prompt</h5>
-                        <button type="button" class="btn-close" aria-label="Close" id="closePromptDisplay"></button>
-                    </div>
-                    <div class="card-body">
+                    <div class="card-body position-relative">
+                        <button type="button" class="btn-close position-absolute top-0 end-0 m-2" aria-label="Close" id="closePromptDisplay"></button>
                         <p><strong id="promptTopicTitle">Topic: Introduce Yourself</strong></p>
                         <p id="promptInstructions">Talk about yourself in Spanish. Try to include:</p>
                         <ul id="promptList">
@@ -455,7 +446,6 @@
 
             // NEW: Prompt display handling
             const promptDisplay = document.getElementById('promptDisplay');
-            const promptLevelTitle = document.getElementById('promptLevelTitle');
             const promptTopicTitle = document.getElementById('promptTopicTitle');
             const promptInstructions = document.getElementById('promptInstructions');
             const promptList = document.getElementById('promptList');
@@ -468,15 +458,19 @@
                 link.addEventListener('click', function(e) {
                     e.preventDefault();
                     const level = this.getAttribute('data-level');
-                    
+
                     if (promptData[level]) {
                         const data = promptData[level];
-                        
+
+                        // Remove active class from all links
+                        promptLinks.forEach(l => l.classList.remove('active'));
+                        // Add active class to clicked link
+                        this.classList.add('active');
+
                         // Set content
-                        promptLevelTitle.textContent = data.level;
                         promptTopicTitle.textContent = data.topic;
                         promptInstructions.textContent = data.instructions;
-                        
+
                         // Clear and rebuild list
                         promptList.innerHTML = '';
                         data.list.forEach(item => {
@@ -484,9 +478,9 @@
                             li.textContent = item;
                             promptList.appendChild(li);
                         });
-                        
+
                         promptExample.innerHTML = data.example.replace(/\n\n/g, '<br><br>');
-                        
+
                         // Show the display
                         promptDisplay.style.display = 'block';
                     }
@@ -496,6 +490,8 @@
             // NEW: Close prompt display
             closePromptDisplay.addEventListener('click', function() {
                 promptDisplay.style.display = 'none';
+                // Remove active class from all links when closing
+                promptLinks.forEach(l => l.classList.remove('active'));
             });
 
             let mediaRecorder;
