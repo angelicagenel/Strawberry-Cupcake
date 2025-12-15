@@ -1,145 +1,47 @@
 {
-  "NOVICE_LOW": {
-    "name": "Novice Low",
-    "score_range": [0, 54],
-    "oral_production": "Limited to isolated words and memorized phrases",
-    "functions": "Restricted to naming, identifying, greeting",
-    "discourse": "Fragmented and non-sustained",
-    "grammatical_control": "Minimal and inconsistent",
-    "vocabulary": "Extremely limited and repetitive",
-    "pronunciation": "Strongly influenced by L1 and frequently interferes with understanding",
-    "communication_strategies": "Depends on gestures, repetition, or L1 support",
-    "sociocultural_use": "Limited to rehearsed formulas",
-    "feedback_template": "Your pronunciation is still developing, and this attempt reflects early-stage language use. Keep going — consistency builds clarity."
+  "PROFILE_A_LOW": {
+    "name": "Profile A - Initial Clarity (Low)",
+    "score_range": [0, 20],
+    "feedback_template": "Your pronunciation is still developing. Keep going — consistency builds clarity."
   },
-  "NOVICE_MID": {
-    "name": "Novice Mid",
-    "score_range": [55, 59],
-    "oral_production": "Consists of short phrases and very short sentences",
-    "functions": "Include responding to direct, predictable questions",
-    "discourse": "Remains reactive and dependent on prompts",
-    "grammatical_control": "Errors frequent and often obscure meaning",
-    "vocabulary": "Limited to high-frequency items with heavy repetition",
-    "pronunciation": "Shows strong L1 influence requiring a sympathetic listener",
-    "communication_strategies": "Include repeating or recycling interlocutor language",
-    "sociocultural_use": "Limited to basic courtesy expressions",
-    "feedback_template": "Your pronunciation is still developing, and this attempt reflects early-stage language use. Keep going — consistency builds clarity."
+  "PROFILE_A_MID": {
+    "name": "Profile A - Initial Clarity (Mid)",
+    "score_range": [21, 42],
+    "feedback_template": "Your pronunciation is still developing. Keep going — consistency builds clarity."
   },
-  "NOVICE_HIGH": {
-    "name": "Novice High",
-    "score_range": [60, 64],
-    "oral_production": "Includes simple sentences",
-    "functions": "Expand to basic survival tasks and limited question formation",
-    "discourse": "Appears sequential but lacks cohesion",
-    "grammatical_control": "Of present tense partial and unstable",
-    "vocabulary": "Adequate for immediate needs but imprecise",
-    "pronunciation": "Generally intelligible though non-native",
-    "communication_strategies": "Include limited rephrasing",
-    "sociocultural_use": "Includes basic turn-taking and routine politeness",
-    "feedback_template": "Your pronunciation is still developing, and this attempt reflects early-stage language use. Keep going — consistency builds clarity."
+  "PROFILE_A_HIGH": {
+    "name": "Profile A - Initial Clarity (High)",
+    "score_range": [43, 64],
+    "feedback_template": "Your pronunciation is still developing. Keep going — consistency builds clarity."
   },
-  "INTERMEDIATE_LOW": {
-    "name": "Intermediate Low",
-    "score_range": [65, 69],
-    "oral_production": "Consists of sentence strings",
-    "functions": "Include completing everyday transactions and initiating interaction in familiar contexts",
-    "discourse": "Is accumulative rather than organized",
-    "grammatical_control": "Functional for high-frequency structures with emerging past or future forms often inaccurate",
-    "vocabulary": "Concrete and sufficient for daily life",
-    "pronunciation": "Intelligible in familiar situations",
-    "communication_strategies": "Include basic circumlocution and repair attempts",
-    "sociocultural_use": "Functional but inconsistent",
-    "feedback_template": "Your pronunciation is developing steadily, and many sounds are coming through clearly. Continued practice will help you gain more stability and confidence."
+  "PROFILE_B_LOW": {
+    "name": "Profile B - Functional Clarity (Low)",
+    "score_range": [65, 71],
+    "feedback_template": "Your pronunciation supports functional communication, with some areas that would benefit from greater consistency."
   },
-  "INTERMEDIATE_MID": {
-    "name": "Intermediate Mid",
-    "score_range": [70, 74],
-    "oral_production": "Sustains sentence strings with emerging organization",
-    "functions": "Include initiating, maintaining, and closing conversations and asking a variety of questions",
-    "discourse": "Shows continuity with emerging connectors",
-    "grammatical_control": "Strong in present tense with developing control of past",
-    "vocabulary": "Broad at high-frequency level allowing expression of personal meaning",
-    "pronunciation": "Generally clear without listener strain",
-    "communication_strategies": "Include rephrasing, clarification requests, and compensation",
-    "sociocultural_use": "Appropriate in everyday contexts",
-    "feedback_template": "Your pronunciation is developing steadily, and many sounds are coming through clearly. Continued practice will help you gain more stability and confidence."
+  "PROFILE_B_MID": {
+    "name": "Profile B - Functional Clarity (Mid)",
+    "score_range": [72, 77],
+    "feedback_template": "Your pronunciation supports functional communication, with some areas that would benefit from greater consistency."
   },
-  "INTERMEDIATE_HIGH": {
-    "name": "Intermediate High",
-    "score_range": [75, 79],
-    "oral_production": "Approaches paragraph length",
-    "functions": "Include narration and description across major time frames inconsistently",
-    "discourse": "Shows emerging cohesion with breakdowns under complexity",
-    "grammatical_control": "Sufficient for narration but unstable under pressure",
-    "vocabulary": "Varied and adequate for sustained familiar topics",
-    "pronunciation": "Fluent with minimal interference",
-    "communication_strategies": "Well developed to maintain interaction",
-    "sociocultural_use": "Mostly appropriate with growing register awareness",
-    "feedback_template": "Your pronunciation is developing steadily, and many sounds are coming through clearly. Continued practice will help you gain more stability and confidence."
+  "PROFILE_B_HIGH": {
+    "name": "Profile B - Functional Clarity (High)",
+    "score_range": [78, 84],
+    "feedback_template": "Your pronunciation supports functional communication, with some areas that would benefit from greater consistency."
   },
-  "ADVANCED_LOW": {
-    "name": "Advanced Low",
-    "score_range": [80, 84],
-    "oral_production": "Sustained at paragraph level with occasional lapses",
-    "functions": "Include narration and description in past, present, and future with some inconsistency",
-    "discourse": "Generally cohesive and organized",
-    "grammatical_control": "Strong across major structures with occasional errors",
-    "vocabulary": "Broad and generally appropriate",
-    "pronunciation": "Supports comprehension with minimal effort from listener",
-    "communication_strategies": "Used effectively to maintain communication",
-    "sociocultural_use": "Appropriate in most personal and public contexts",
+  "PROFILE_C_LOW": {
+    "name": "Profile C - Consistent Clarity (Low)",
+    "score_range": [85, 90],
     "feedback_template": "Your pronunciation is clear and generally consistent. Small refinements will help improve overall naturalness and ease of understanding."
   },
-  "ADVANCED_MID": {
-    "name": "Advanced Mid",
-    "score_range": [85, 89],
-    "oral_production": "Consistently sustained at paragraph level",
-    "functions": "Include consistent narration and description across time frames and handling complications",
-    "discourse": "Cohesive and well-organized",
-    "grammatical_control": "Strong across major structures with minor errors",
-    "vocabulary": "Broad, appropriate, and precise",
-    "pronunciation": "Supports effortless comprehension",
-    "communication_strategies": "Used flexibly and effectively",
-    "sociocultural_use": "Consistently appropriate across personal and public contexts",
+  "PROFILE_C_MID": {
+    "name": "Profile C - Consistent Clarity (Mid)",
+    "score_range": [91, 95],
     "feedback_template": "Your pronunciation is clear and generally consistent. Small refinements will help improve overall naturalness and ease of understanding."
   },
-  "ADVANCED_HIGH": {
-    "name": "Advanced High",
-    "score_range": [90, 94],
-    "oral_production": "Extended and sustained at paragraph level across all time frames",
-    "functions": "Include consistent narration, description, and handling of unexpected complications",
-    "discourse": "Highly cohesive and organized with smooth transitions",
-    "grammatical_control": "Excellent across all major structures",
-    "vocabulary": "Extensive, appropriate, and nuanced",
-    "pronunciation": "Fully supports effortless comprehension with near-native quality",
-    "communication_strategies": "Sophisticated and strategic",
-    "sociocultural_use": "Highly appropriate with strong register awareness",
-    "feedback_template": "Your pronunciation is clear and generally consistent. Small refinements will help improve overall naturalness and ease of understanding."
-  },
-  "SUPERIOR": {
-    "name": "Superior",
-    "score_range": [95, 97],
-    "oral_production": "Extended and abstract",
-    "functions": "Include supporting opinions, hypothesizing, and discussing societal issues",
-    "discourse": "Logically structured with rhetorical devices",
-    "grammatical_control": "Errors rare and non-distracting",
-    "vocabulary": "Precise and abstract",
-    "pronunciation": "Fluent and controlled with native-like quality",
-    "communication_strategies": "Sophisticated and purposeful",
-    "sociocultural_use": "Accurate across formal and informal settings",
-    "feedback_template": "Your pronunciation is clear and generally consistent. Small refinements will help improve overall naturalness and ease of understanding."
-  },
-  "DISTINGUISHED": {
-    "name": "Distinguished",
-    "score_range": [98, 100],
-    "oral_production": "Comparable to written discourse in sophistication",
-    "functions": "Include persuading, negotiating, advising, and tailoring discourse to audience",
-    "discourse": "Tightly organized and stylistically controlled with masterful use of rhetorical devices",
-    "grammatical_control": "Grammatical and lexical precision at the highest level",
-    "vocabulary": "Extensive, precise, and culturally authentic",
-    "pronunciation": "Effortless and indistinguishable from educated native speakers",
-    "communication_strategies": "Strategic, deliberate, and highly sophisticated",
-    "sociocultural_use": "Culturally authentic and audience-specific with complete mastery",
+  "PROFILE_C_HIGH": {
+    "name": "Profile C - Consistent Clarity (High)",
+    "score_range": [96, 100],
     "feedback_template": "Your pronunciation is clear and generally consistent. Small refinements will help improve overall naturalness and ease of understanding."
   }
 }
