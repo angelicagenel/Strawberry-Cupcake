@@ -1,5 +1,5 @@
 {
-    "beginner": "Hola, ¿cómo estás? Espero que estés teniendo un buen día.",
-    "intermediate": "Los bomberos llegaron rápidamente al lugar del incendio.",
-    "advanced": "En caso de emergencia, mantenga la calma y siga las instrucciones de seguridad."
+    "short": "Hola, ¿cómo estás? Espero que estés teniendo un buen día.",
+    "medium": "Los bomberos llegaron rápidamente al lugar del incendio.",
+    "extended": "En caso de emergencia, mantenga la calma y siga las instrucciones de seguridad."
 }

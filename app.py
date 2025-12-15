@@ -115,21 +115,21 @@ def load_references():
                     logger.warning(f"References file not found in bucket {BUCKET_NAME}")
             # Default references if file not found
             return {
-                "beginner": "Hola, ¿cómo estás? Espero que estés teniendo un buen día.",
-                "intermediate": "Los bomberos llegaron rápidamente al lugar del incendio.",
-                "advanced": "En caso de emergencia, mantenga la calma y siga las instrucciones de seguridad."
+                "short": "Hola, ¿cómo estás? Espero que estés teniendo un buen día.",
+                "medium": "Los bomberos llegaron rápidamente al lugar del incendio.",
+                "extended": "En caso de emergencia, mantenga la calma y siga las instrucciones de seguridad."
             }
     except Exception as e:
         logger.error(f"Error loading references: {e}")
         return {
-            "beginner": "Hola, ¿cómo estás?",
-            "intermediate": "Me gusta viajar y conocer nuevas culturas.",
-            "advanced": "La educación es fundamental para el desarrollo de la sociedad."
+            "short": "Hola, ¿cómo estás?",
+            "medium": "Me gusta viajar y conocer nuevas culturas.",
+            "extended": "La educación es fundamental para el desarrollo de la sociedad."
         }
 
-# Load ACTFL criteria from configuration file
-def load_actfl_criteria():
-    """Load detailed ACTFL proficiency criteria from configuration file"""
+# Load pronunciation profile criteria from configuration file
+def load_profile_criteria():
+    """Load pronunciation profile criteria from configuration file"""
     try:
         try:
             with open("actfl_criteria.json", "r", encoding="utf-8") as f:
@@ -142,20 +142,20 @@ def load_actfl_criteria():
                         content = blob.download_as_string().decode('utf-8')
                         return json.loads(content)
                 except exceptions.NotFound:
-                    logger.warning(f"ACTFL criteria file not found in bucket {BUCKET_NAME}")
+                    logger.warning(f"Profile criteria file not found in bucket {BUCKET_NAME}")
             # Return None if file not found - will use built-in criteria
-            logger.warning("ACTFL criteria file not found. Using built-in criteria.")
+            logger.warning("Profile criteria file not found. Using built-in criteria.")
             return None
     except Exception as e:
-        logger.error(f"Error loading ACTFL criteria: {e}")
+        logger.error(f"Error loading profile criteria: {e}")
         return None
 
-# Initialize Spanish dictionary, references, and ACTFL criteria
+# Initialize Spanish dictionary, references, and pronunciation profile criteria
 SPANISH_DICT = load_dictionary()
 REFERENCES = load_references()
-ACTFL_CRITERIA = load_actfl_criteria()
+PROFILE_CRITERIA = load_profile_criteria()
 logger.info(f"Dictionary loaded with {len(SPANISH_DICT)} words")
-logger.info(f"ACTFL criteria loaded: {'Yes' if ACTFL_CRITERIA else 'No (using built-in)'}")
+logger.info(f"Profile criteria loaded: {'Yes' if PROFILE_CRITERIA else 'No (using built-in)'}")
 
 def transcribe_audio(audio_content):
     """Transcribe Spanish audio using Google Cloud Speech-to-Text with support for up to 2 minutes"""
@@ -285,9 +285,9 @@ def transcribe_audio(audio_content):
 # Calculate pronunciation score when doing free speech
 def assess_free_speech(transcribed_text):
     """
-    Evaluate pronunciation using ACTFL FACT criteria for free speech mode
+    Evaluate pronunciation for free speech mode
     """
-    return actfl_assessment(transcribed_text)
+    return pronunciation_assessment(transcribed_text)
 
 # Calculate pronunciation score when practicing with reference phrases
 def assess_practice_phrase(transcribed_text, reference_level):
@@ -295,15 +295,15 @@ def assess_practice_phrase(transcribed_text, reference_level):
     Evaluate pronunciation with reference to a specific practice phrase
     """
     if reference_level not in REFERENCES:
-        return actfl_assessment(transcribed_text)
-    
+        return pronunciation_assessment(transcribed_text)
+
     reference_text = REFERENCES[reference_level]
-    
+
     # Compare transcribed text with reference text
     similarity_score = fuzz.token_sort_ratio(transcribed_text.lower(), reference_text.lower())
-    
+
     # Get a base assessment
-    base_assessment = actfl_assessment(transcribed_text)
+    base_assessment = pronunciation_assessment(transcribed_text)
     
     # Adjust score based on similarity to reference
     similarity_bonus = (similarity_score - 60) * 0.2 if similarity_score > 60 else 0
@@ -330,22 +330,22 @@ def assess_practice_phrase(transcribed_text, reference_level):
     
     return assessment
 
-# Calculate pronunciation score based on ACTFL FACT criteria
-def actfl_assessment(transcribed_text):
+# Calculate pronunciation score based on clarity metrics
+def pronunciation_assessment(transcribed_text):
     """
-    Evaluate pronunciation using ACTFL FACT criteria:
-    - Functions and tasks: Can the speaker communicate their message?
+    Evaluate pronunciation using clarity metrics:
     - Accuracy: How precise is their pronunciation?
-    - Context and content: Can they handle the topic appropriately?
-    - Text type: Can they produce appropriate sentence structures?
+    - Recognition: How well are words recognized?
+    - Text complexity: Can they produce appropriate sentence structures?
+    - Vocabulary variety: Range of vocabulary used
     """
     words = transcribed_text.split()
     if not words:
         logger.warning("No words to score")
         return {
             "score": 70.0,
-            "level": "Novice Mid",
-            "feedback": "We couldn't detect your speech. Please ensure your microphone is working and try speaking a bit louder. Keep going!",
+            "level": "Profile B - Functional Clarity",
+            "feedback": "We couldn't detect your speech. Please ensure your microphone is working and try speaking a bit louder.",
             "strengths": [],
             "areas_for_improvement": ["Check microphone connection and reduce background noise"]
         }
@@ -396,7 +396,7 @@ def actfl_assessment(transcribed_text):
     unique_words_ratio = len(set(words)) / len(words)
     vocabulary_score = min(100, unique_words_ratio * 100)
     
-    # Calculate composite ACTFL score with different weights
+    # Calculate composite clarity score with different weights
     # Pronunciation accuracy is most important
     composite_score = (
         accuracy_score * 0.6 +
@@ -404,20 +404,20 @@ def actfl_assessment(transcribed_text):
         text_complexity * 0.1 +
         vocabulary_score * 0.1
     )
-    
-    # Native speaker adjustment - boost scores for clearly native speakers
+
+    # High clarity adjustment - boost scores for very clear pronunciation
     if accuracy_score > 90 and len(words) > 3:
         composite_score = min(100, composite_score + 5)
-    
-    # Determine ACTFL level
-    level = determine_actfl_level(composite_score, len(words), recognized_word_percentage)
+
+    # Determine pronunciation profile
+    level = determine_pronunciation_profile(composite_score, len(words), recognized_word_percentage)
     
     # Generate feedback
     strengths = generate_strengths(accuracy_score, recognized_word_percentage, len(words))
     areas_for_improvement = generate_improvements(mispronounced_words, accuracy_score)
     
-    logger.info(f"ACTFL Scoring - Accuracy: {accuracy_score}, Recognition: {recognized_word_percentage*100}, " +
-              f"Text: {text_complexity}, Vocab: {vocabulary_score}, Final: {composite_score}, Level: {level}")
+    logger.info(f"Clarity Scoring - Accuracy: {accuracy_score}, Recognition: {recognized_word_percentage*100}, " +
+              f"Text: {text_complexity}, Vocab: {vocabulary_score}, Final: {composite_score}, Profile: {level}")
 
     # Build the assessment result
     assessment_result = {
@@ -429,33 +429,17 @@ def actfl_assessment(transcribed_text):
         "word_scores": dict(zip(words, word_scores))
     }
 
-    # Add detailed criteria descriptors if available
-    if ACTFL_CRITERIA:
-        for level_key, criteria in ACTFL_CRITERIA.items():
-            if criteria["name"] == level:
-                assessment_result["criteria_details"] = {
-                    "oral_production": criteria["oral_production"],
-                    "functions": criteria["functions"],
-                    "discourse": criteria["discourse"],
-                    "grammatical_control": criteria["grammatical_control"],
-                    "vocabulary": criteria["vocabulary"],
-                    "pronunciation": criteria["pronunciation"],
-                    "communication_strategies": criteria["communication_strategies"],
-                    "sociocultural_use": criteria["sociocultural_use"]
-                }
-                break
-
     return assessment_result
 
-def determine_actfl_level(score, word_count, recognized_ratio):
-    """Determine ACTFL proficiency level based on score and other factors"""
+def determine_pronunciation_profile(score, word_count, recognized_ratio):
+    """Determine pronunciation profile based on clarity score and performance factors"""
 
-    # If we have loaded ACTFL criteria, use the score ranges from there
-    if ACTFL_CRITERIA:
+    # If we have loaded profile criteria, use the score ranges from there
+    if PROFILE_CRITERIA:
         # Adjust score based on performance factors
         adjusted_score = score
 
-        # Boost score for longer, more complex speech (discourse production)
+        # Boost score for longer, more complex speech
         if word_count >= 15 and recognized_ratio >= 0.9:
             adjusted_score = min(100, score + 3)
         elif word_count >= 10 and recognized_ratio >= 0.85:
@@ -467,160 +451,110 @@ def determine_actfl_level(score, word_count, recognized_ratio):
         if word_count < 3 or recognized_ratio < 0.5:
             adjusted_score = max(0, score - 5)
 
-        # Find the matching level based on score range
-        for level_key, criteria in ACTFL_CRITERIA.items():
+        # Find the matching profile based on score range
+        for profile_key, criteria in PROFILE_CRITERIA.items():
             score_min, score_max = criteria["score_range"]
             if score_min <= adjusted_score <= score_max:
                 return criteria["name"]
 
-        # Fallback to Novice Low if no match found
-        return "Novice Low"
+        # Fallback to Profile A if no match found
+        return "Profile A - Initial Clarity"
 
-    # Fallback to original logic if criteria file not loaded
-    # Advanced Levels (Score 80-100)
-    if score >= 80:
-        if score >= 90:
-            # Advanced High: High score + strong performance on length and clarity
-            if recognized_ratio >= 0.9 and word_count >= 15:
-                return "Advanced High"
-            # Advanced Low/Mid combined: Excellent score, but maybe less extended discourse
-            else:
-                return "Advanced Mid"
-
-        elif score >= 85:
-             # Advanced Low: Good score, but needs longer discourse/fewer errors for High
-            if recognized_ratio >= 0.85 and word_count >= 10:
-                return "Advanced Low"
-            else:
-                return "Intermediate High"
+    # Fallback to built-in logic if criteria file not loaded
+    # Profile C — Consistent Clarity (85-100)
+    if score >= 85:
+        if score >= 96:
+            return "Profile C - Consistent Clarity (High)"
+        elif score >= 91:
+            return "Profile C - Consistent Clarity (Mid)"
         else:
-            return "Intermediate High"
+            return "Profile C - Consistent Clarity (Low)"
 
-    # Intermediate Levels (Score 65-79)
+    # Profile B — Functional Clarity (65-84)
     elif score >= 65:
-        if score >= 75:
-            # Intermediate High: Can produce connected discourse (paragraphs)
-            if word_count >= 8 and recognized_ratio >= 0.8:
-                return "Intermediate High"
-            else:
-                return "Intermediate Mid"
-
-        elif score >= 70:
-            # Intermediate Mid: Handles straightforward situations (survival level)
-            if recognized_ratio >= 0.7 and word_count >= 5:
-                return "Intermediate Mid"
-            else:
-                return "Intermediate Low"
+        if score >= 78:
+            return "Profile B - Functional Clarity (High)"
+        elif score >= 72:
+            return "Profile B - Functional Clarity (Mid)"
         else:
-            return "Intermediate Low"
+            return "Profile B - Functional Clarity (Low)"
 
-    # Novice Levels (Score 50-64)
-    elif score >= 50:
-        if score >= 60:
-            # Novice High: Short, predictable messages/simple sentences
-            if word_count >= 3 and recognized_ratio >= 0.6:
-                return "Novice High"
-            else:
-                return "Novice Mid"
-        elif score >= 55:
-            # Novice Mid: Basic needs/personal info with memorized phrases
-            return "Novice Mid"
-        else:
-            return "Novice Low"
-
+    # Profile A — Initial Clarity (0-64)
     else:
-        return "Novice Low"
+        if score >= 43:
+            return "Profile A - Initial Clarity (High)"
+        elif score >= 21:
+            return "Profile A - Initial Clarity (Mid)"
+        else:
+            return "Profile A - Initial Clarity (Low)"
 
 def generate_feedback(level):
-    """Generate feedback text based on ACTFL level"""
+    """Generate feedback text based on pronunciation profile"""
 
-    # If we have loaded ACTFL criteria, use feedback templates from there
-    if ACTFL_CRITERIA:
-        for level_key, criteria in ACTFL_CRITERIA.items():
+    # If we have loaded profile criteria, use feedback templates from there
+    if PROFILE_CRITERIA:
+        for profile_key, criteria in PROFILE_CRITERIA.items():
             if criteria["name"] == level:
                 return criteria["feedback_template"]
 
-    # Fallback to built-in feedback templates
-    feedback_templates = {
-        # Profile C — Consistent Clarity (80-100)
-        "Distinguished": "Your pronunciation is clear and generally consistent. Small refinements will help improve overall naturalness and ease of understanding.",
-        "Superior": "Your pronunciation is clear and generally consistent. Small refinements will help improve overall naturalness and ease of understanding.",
-        "Advanced High": "Your pronunciation is clear and generally consistent. Small refinements will help improve overall naturalness and ease of understanding.",
-        "Advanced Mid": "Your pronunciation is clear and generally consistent. Small refinements will help improve overall naturalness and ease of understanding.",
-        "Advanced Low": "Your pronunciation is clear and generally consistent. Small refinements will help improve overall naturalness and ease of understanding.",
+    # Fallback to built-in feedback templates based on profile ranges
+    # Profile C — Consistent Clarity (85-100)
+    if "Profile C" in level or score >= 85:
+        return "Your pronunciation is clear and generally consistent. Small refinements will help improve overall naturalness and ease of understanding."
 
-        # Profile B — Functional Clarity (65-79)
-        "Intermediate High": "Your pronunciation is developing steadily, and many sounds are coming through clearly. Continued practice will help you gain more stability and confidence.",
-        "Intermediate Mid": "Your pronunciation is developing steadily, and many sounds are coming through clearly. Continued practice will help you gain more stability and confidence.",
-        "Intermediate Low": "Your pronunciation is developing steadily, and many sounds are coming through clearly. Continued practice will help you gain more stability and confidence.",
+    # Profile B — Functional Clarity (65-84)
+    elif "Profile B" in level or score >= 65:
+        return "Your pronunciation supports functional communication, with some areas that would benefit from greater consistency."
 
-        # Profile A — Initial Clarity (0-64)
-        "Novice High": "Your pronunciation is still developing, and this attempt reflects early-stage language use. Keep going — consistency builds clarity.",
-        "Novice Mid": "Your pronunciation is still developing, and this attempt reflects early-stage language use. Keep going — consistency builds clarity.",
-        "Novice Low": "Your pronunciation is still developing, and this attempt reflects early-stage language use. Keep going — consistency builds clarity."
-    }
-    return feedback_templates.get(level, "Your pronunciation shows varying levels of accuracy.")
+    # Profile A — Initial Clarity (0-64)
+    else:
+        return "Your pronunciation is still developing. Keep going — consistency builds clarity."
 
 def generate_strengths(accuracy, recognition_ratio, word_count):
-    """Generate list of strengths based on performance - ONE unique bullet per metric"""
+    """Generate list of strengths based on performance profile - exactly 3 bullets"""
     strengths = []
-    used_feedback = set()  # Track which feedback we've used to avoid duplicates
 
-    # Strength #1: Accuracy feedback (choose one)
-    accuracy_feedback = None
+    # Determine which profile we're in based on accuracy score (primary indicator)
+    # This ensures feedback aligns with the clarity range
+
+    # Profile C — Consistent Clarity (85-100)
     if accuracy >= 85:
-        accuracy_feedback = "Most individual sounds were produced clearly."
+        strengths.append("Most individual sounds were produced clearly.")
+        strengths.append("Your words were consistently recognized, supporting strong intelligibility.")
+        strengths.append("You maintained a steady rhythm across connected speech.")
+
+    # Profile B — Functional Clarity (65-84)
     elif accuracy >= 65:
-        accuracy_feedback = "Several sounds were produced clearly and consistently."
+        strengths.append("Most words were pronounced clearly.")
+        strengths.append("Your speech was generally easy for the system to recognize.")
+        strengths.append("You maintained a steady rhythm across familiar phrases.")
 
-    if accuracy_feedback and accuracy_feedback not in used_feedback:
-        strengths.append(accuracy_feedback)
-        used_feedback.add(accuracy_feedback)
-
-    # Strength #2: Recognition Ratio feedback (choose one)
-    recognition_feedback = None
-    if recognition_ratio >= 0.85:
-        recognition_feedback = "Your words were generally easy for the system to recognize, supporting overall understanding."
-    elif recognition_ratio >= 0.6:
-        recognition_feedback = "Most words were recognized clearly, contributing to message clarity."
-
-    if recognition_feedback and recognition_feedback not in used_feedback:
-        strengths.append(recognition_feedback)
-        used_feedback.add(recognition_feedback)
-
-    # Strength #3: Stability feedback (choose one)
-    stability_feedback = None
-    if word_count >= 10:
-        stability_feedback = "You maintained a steady rhythm across familiar phrases."
-    elif word_count >= 5:
-        stability_feedback = "Your speech showed moments of stable, confident pronunciation."
-
-    if stability_feedback and stability_feedback not in used_feedback:
-        strengths.append(stability_feedback)
-        used_feedback.add(stability_feedback)
-
-    # Ensure we always have at least one strength
-    if not strengths:
-        strengths.append("Your speech showed moments of stable, confident pronunciation.")
+    # Profile A — Initial Clarity (0-64)
+    else:
+        strengths.append("Some individual sounds were produced clearly.")
+        strengths.append("Parts of your speech were recognized by the system, supporting partial understanding.")
+        strengths.append("You showed emerging control over rhythm in familiar phrases.")
 
     return strengths
 
 def generate_improvements(mispronounced, accuracy):
-    """Generate suggested areas for improvement"""
+    """Generate suggested areas for improvement based on profile"""
     improvements = []
 
-    # Generic suggestions based on accuracy score
-    if accuracy < 60:
-        improvements.append("Continue building basic vocabulary and common greetings.")
-        improvements.append("Practice maintaining steady pronunciation across short phrases.")
-    elif accuracy < 75:
-        improvements.append("Focus on keeping each sound clear from the beginning to the end of the word.")
-    elif accuracy < 85:
-        improvements.append("Work on maintaining consistent clarity as phrases become longer.")
-    elif accuracy < 95:
-        improvements.append("Work on maintaining a smooth, even rhythm while speaking.")
+    # Profile-specific improvement suggestion (first bullet)
+    # Profile C — Consistent Clarity (85-100)
+    if accuracy >= 85:
+        improvements.append("Focus on subtle refinements to rhythm and sound precision.")
 
-    # Specific Mispronunciation Feedback - SINGLE INTEGRATED SENTENCE
+    # Profile B — Functional Clarity (65-84)
+    elif accuracy >= 65:
+        improvements.append("Continue stabilizing rhythm and sound consistency in longer phrases.")
+
+    # Profile A — Initial Clarity (0-64)
+    else:
+        improvements.append("Work on maintaining a smoother, more even rhythm while speaking.")
+
+    # Specific Mispronunciation Feedback - SINGLE INTEGRATED SENTENCE (second bullet)
     if mispronounced:
         # Helper function to convert digits to Spanish words
         def number_to_spanish(word):
@@ -632,7 +566,7 @@ def generate_improvements(mispronounced, accuracy):
             }
             return digit_map.get(word, word)
 
-        # Convert numbers to Spanish and format words
+        # Convert numbers to Spanish and format words (limit to 5 words)
         formatted_words = [number_to_spanish(word) for word in mispronounced[:5]]
 
         # Build the sentence with proper formatting (using HTML for bold)
@@ -644,11 +578,7 @@ def generate_improvements(mispronounced, accuracy):
             # Join all but last with commas, then add "and" before the last word
             word_list = ", ".join([f"<strong>{w}</strong>" for w in formatted_words[:-1]]) + f", and <strong>{formatted_words[-1]}</strong>"
 
-        improvements.append(f"To improve clarity and reduce ambiguity, focus on refining the pronunciation of {word_list}.")
-
-    # Final suggestion if no other specific improvements were generated
-    if not improvements:
-        improvements.append("Work on maintaining a smooth, even rhythm while speaking.")
+        improvements.append(f"To improve clarity and reduce ambiguity, focus on refining the pronunciation of: {word_list}.")
 
     return improvements
 
@@ -704,8 +634,8 @@ def generate_tts_feedback(text, level):
         # Initialize Text-to-Speech client
         client = texttospeech.TextToSpeechClient()
         
-        # Select voice based on proficiency level (slower for beginners)
-        speaking_rate = 0.8 if level.startswith("Novice") else 1.0
+        # Select voice based on clarity profile (slower for initial clarity)
+        speaking_rate = 0.8 if "Profile A" in level else 1.0
         
         # Build the voice request
         synthesis_input = texttospeech.SynthesisInput(text=text)
@@ -816,7 +746,7 @@ def process_audio():
             logger.warning("No transcription returned")
             return jsonify({
             "score": 70,
-            "level": "Novice Mid",
+            "level": "Profile B - Functional Clarity",
             "transcribed_text": "No se pudo transcribir el audio. Por favor, intente de nuevo con una grabación un poco más corta.",
             "corrected_text": "No transcription available. Please try again with a slightly shorter recording.",
             "error": "Sorry — we're experiencing a temporary technical issue.\nPlease try again with a slightly shorter recording.",
@@ -887,7 +817,7 @@ def get_references():
         logger.error(f"Error loading references: {e}")
         return jsonify({
             "error": "Could not load references",
-            "beginner": "Hola, ¿cómo estás?"
+            "short": "Hola, ¿cómo estás?"
         }), 500
 
 if __name__ == '__main__':

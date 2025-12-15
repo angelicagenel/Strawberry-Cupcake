@@ -278,9 +278,9 @@
                 <div class="prompt-section">
                     <p class="prompt-title">Need inspiration? Select a prompt length:</p>
                     <div class="prompt-links">
-                        <a href="#" class="prompt-link" data-level="beginner">Short Prompt</a>
-                        <a href="#" class="prompt-link" data-level="intermediate">Medium Prompt</a>
-                        <a href="#" class="prompt-link" data-level="advanced">Extended Prompt</a>
+                        <a href="#" class="prompt-link" data-level="short">Short Prompt</a>
+                        <a href="#" class="prompt-link" data-level="medium">Medium Prompt</a>
+                        <a href="#" class="prompt-link" data-level="extended">Extended Prompt</a>
                     </div>
                 </div>
                 
@@ -406,7 +406,7 @@
             
             // NEW: Define prompt data structure
             const promptData = {
-                beginner: {
+                short: {
                     level: "Short",
                     topic: "Topic: Introduce Yourself",
                     instructions: "Talk about yourself in Spanish. Try to include:",
@@ -418,7 +418,7 @@
                     ],
                     example: "Hola, me llamo María y soy de California. Tengo veinticinco años y soy estudiante. Me gusta leer, cocinar, y pasar tiempo con mis amigos."
                 },
-                intermediate: {
+                medium: {
                     level: "Medium",
                     topic: "Topic: Describe Your Day",
                     instructions: "Talk about your typical day or what you did yesterday. Try to include:",
@@ -430,7 +430,7 @@
                     ],
                     example: "Ayer me desperté a las siete de la mañana. Primero, tomé un café y desayuné con mi familia. Después, fui a trabajar. Por la tarde, almorcé con mi amigo Juan en un restaurante cerca de la oficina. La comida estaba deliciosa. Regresé a casa a las seis y pasé tiempo con mi familia."
                 },
-                advanced: {
+                extended: {
                     level: "Extended",
                     topic: "Topic: Opinion on Technology and Education",
                     instructions: "Share your perspective on how technology influences contemporary education. Address:",
@@ -682,16 +682,9 @@
                         return;
                     }
 
-                    // Map ACTFL level to Profile Description
-                    let description = 'Your pronunciation is still developing, and this attempt reflects early-stage language use. Keep going — consistency builds clarity.';  // Default Profile A
-                    if (data.level.includes('Novice')) {
-                        description = 'Your pronunciation is still developing, and this attempt reflects early-stage language use. Keep going — consistency builds clarity.';
-                    } else if (data.level.includes('Intermediate')) {
-                        description = 'Your pronunciation is developing steadily, and many sounds are coming through clearly. Continued practice will help you gain more stability and confidence.';
-                    } else if (data.level.includes('Advanced') || data.level.includes('Superior') || data.level.includes('Distinguished')) {
-                        description = 'Your pronunciation is clear and generally consistent. Small refinements will help improve overall naturalness and ease of understanding.';
-                    }
-                    profileDescription.textContent = description;
+                    // The profile description is already included in the feedback text from backend
+                    // No need to display it separately - the backend now sends the correct profile-based feedback
+                    profileDescription.textContent = '';
 
                     scoreFill.style.width = data.score + '%';
                     scoreFill.textContent = 'Estimated Clarity: ' + Math.round(data.score) + '%';
