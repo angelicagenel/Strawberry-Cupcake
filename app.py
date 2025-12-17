@@ -158,7 +158,14 @@ logger.info(f"Dictionary loaded with {len(SPANISH_DICT)} words")
 logger.info(f"Profile criteria loaded: {'Yes' if PROFILE_CRITERIA else 'No (using built-in)'}")
 
 def transcribe_audio(audio_content):
-    """Transcribe Spanish audio using Google Cloud Speech-to-Text with support for up to 2 minutes"""
+    """Transcribe Spanish audio using Google Cloud Speech-to-Text with support for up to 2 minutes
+
+    Returns:
+        dict: {
+            'transcript': str - The transcribed text,
+            'word_confidences': dict - Map of word to confidence score (0.0-1.0)
+        }
+    """
     client = speech.SpeechClient()
 
     # Check audio size to determine which method to use
@@ -180,6 +187,7 @@ def transcribe_audio(audio_content):
         language_code="es-ES",
         alternative_language_codes=["es-MX", "es-US"],
         enable_automatic_punctuation=True,
+        enable_word_confidence=True,  # Enable word-level confidence scores
         use_enhanced=True,
         model="default",
         audio_channel_count=1
@@ -193,12 +201,36 @@ def transcribe_audio(audio_content):
             response = client.recognize(config=config, audio=audio)
 
             if response.results:
-                transcript = " ".join(result.alternatives[0].transcript for result in response.results)
+                # Extract transcript and word confidence scores
+                transcript_parts = []
+                word_confidences = {}
+
+                for result in response.results:
+                    alternative = result.alternatives[0]
+                    transcript_parts.append(alternative.transcript)
+
+                    # Extract word-level confidence scores if available
+                    if hasattr(alternative, 'words') and alternative.words:
+                        for word_info in alternative.words:
+                            word = word_info.word.lower()
+                            confidence = word_info.confidence if hasattr(word_info, 'confidence') else 0.5
+                            word_confidences[word] = confidence
+                            logger.info(f"Word: '{word}' - Confidence: {confidence:.3f}")
+
+                transcript = " ".join(transcript_parts)
                 logger.info(f"Inline transcription successful ({len(transcript)} chars): '{transcript[:100]}...'")
-                return transcript
+                logger.info(f"Extracted {len(word_confidences)} word confidence scores")
+
+                return {
+                    'transcript': transcript,
+                    'word_confidences': word_confidences
+                }
             else:
                 logger.warning("No transcription results from inline recognize()")
-                return ""
+                return {
+                    'transcript': '',
+                    'word_confidences': {}
+                }
 
         # For longer audio (>50 seconds at 32kbps), use long_running_recognize() with Cloud Storage
         else:
@@ -212,15 +244,39 @@ def transcribe_audio(audio_content):
                     audio = speech.RecognitionAudio(content=audio_content)
                     response = client.recognize(config=config, audio=audio)
                     if response.results:
-                        transcript = " ".join(result.alternatives[0].transcript for result in response.results)
+                        # Extract transcript and word confidence scores
+                        transcript_parts = []
+                        word_confidences = {}
+
+                        for result in response.results:
+                            alternative = result.alternatives[0]
+                            transcript_parts.append(alternative.transcript)
+
+                            # Extract word-level confidence scores if available
+                            if hasattr(alternative, 'words') and alternative.words:
+                                for word_info in alternative.words:
+                                    word = word_info.word.lower()
+                                    confidence = word_info.confidence if hasattr(word_info, 'confidence') else 0.5
+                                    word_confidences[word] = confidence
+
+                        transcript = " ".join(transcript_parts)
                         logger.info(f"Fallback inline transcription successful: '{transcript}'")
-                        return transcript
+                        return {
+                            'transcript': transcript,
+                            'word_confidences': word_confidences
+                        }
                     else:
                         logger.error("Fallback inline transcription returned no results")
-                        return ""
+                        return {
+                            'transcript': '',
+                            'word_confidences': {}
+                        }
                 except Exception as fallback_error:
                     logger.error(f"Fallback inline transcription failed: {str(fallback_error)}")
-                    return ""
+                    return {
+                        'transcript': '',
+                        'word_confidences': {}
+                    }
 
             # Upload audio to Cloud Storage
             blob_name = f"temp_audio/{uuid.uuid4()}.webm"
@@ -246,12 +302,36 @@ def transcribe_audio(audio_content):
                 logger.warning(f"Could not delete temporary file: {cleanup_error}")
 
             if response.results:
-                transcript = " ".join(result.alternatives[0].transcript for result in response.results)
+                # Extract transcript and word confidence scores
+                transcript_parts = []
+                word_confidences = {}
+
+                for result in response.results:
+                    alternative = result.alternatives[0]
+                    transcript_parts.append(alternative.transcript)
+
+                    # Extract word-level confidence scores if available
+                    if hasattr(alternative, 'words') and alternative.words:
+                        for word_info in alternative.words:
+                            word = word_info.word.lower()
+                            confidence = word_info.confidence if hasattr(word_info, 'confidence') else 0.5
+                            word_confidences[word] = confidence
+                            logger.info(f"Word: '{word}' - Confidence: {confidence:.3f}")
+
+                transcript = " ".join(transcript_parts)
                 logger.info(f"Long-running transcription successful ({len(transcript)} chars): '{transcript[:100]}...'")
-                return transcript
+                logger.info(f"Extracted {len(word_confidences)} word confidence scores")
+
+                return {
+                    'transcript': transcript,
+                    'word_confidences': word_confidences
+                }
             else:
                 logger.warning("No transcription results from long_running_recognize()")
-                return ""
+                return {
+                    'transcript': '',
+                    'word_confidences': {}
+                }
 
     except Exception as e:
         # Check if this is a timeout-related exception
@@ -263,7 +343,10 @@ def transcribe_audio(audio_content):
 
         if is_timeout:
             logger.error(f"Timeout error during transcription: {str(e)}")
-            return ""
+            return {
+                'transcript': '',
+                'word_confidences': {}
+            }
 
         logger.error(f"Error during transcription: {str(e)}")
 
@@ -274,41 +357,74 @@ def transcribe_audio(audio_content):
                 audio_inline = speech.RecognitionAudio(content=audio_content)
                 response = client.recognize(config=config, audio=audio_inline)
                 if response.results:
-                    transcript = " ".join(result.alternatives[0].transcript for result in response.results)
+                    # Extract transcript and word confidence scores
+                    transcript_parts = []
+                    word_confidences = {}
+
+                    for result in response.results:
+                        alternative = result.alternatives[0]
+                        transcript_parts.append(alternative.transcript)
+
+                        # Extract word-level confidence scores if available
+                        if hasattr(alternative, 'words') and alternative.words:
+                            for word_info in alternative.words:
+                                word = word_info.word.lower()
+                                confidence = word_info.confidence if hasattr(word_info, 'confidence') else 0.5
+                                word_confidences[word] = confidence
+
+                    transcript = " ".join(transcript_parts)
                     logger.info(f"Fallback transcription successful: '{transcript}'")
-                    return transcript
+                    return {
+                        'transcript': transcript,
+                        'word_confidences': word_confidences
+                    }
             except Exception as fallback_error:
                 logger.error(f"Fallback also failed: {str(fallback_error)}")
 
-        return ""
+        return {
+            'transcript': '',
+            'word_confidences': {}
+        }
 
 # Calculate pronunciation score when doing free speech
-def assess_free_speech(transcribed_text):
+def assess_free_speech(transcription_data):
     """
     Evaluate pronunciation for free speech mode
+
+    Args:
+        transcription_data: Dict with 'transcript' and 'word_confidences'
     """
-    return pronunciation_assessment(transcribed_text)
+    transcript = transcription_data.get('transcript', '')
+    word_confidences = transcription_data.get('word_confidences', {})
+    return pronunciation_assessment(transcript, word_confidences)
 
 # Calculate pronunciation score when practicing with reference phrases
-def assess_practice_phrase(transcribed_text, reference_level):
+def assess_practice_phrase(transcription_data, reference_level):
     """
     Evaluate pronunciation with reference to a specific practice phrase
+
+    Args:
+        transcription_data: Dict with 'transcript' and 'word_confidences'
+        reference_level: Level of reference phrase (short, medium, extended)
     """
+    transcript = transcription_data.get('transcript', '')
+    word_confidences = transcription_data.get('word_confidences', {})
+
     if reference_level not in REFERENCES:
-        return pronunciation_assessment(transcribed_text)
+        return pronunciation_assessment(transcript, word_confidences)
 
     reference_text = REFERENCES[reference_level]
 
     # Compare transcribed text with reference text
-    similarity_score = fuzz.token_sort_ratio(transcribed_text.lower(), reference_text.lower())
+    similarity_score = fuzz.token_sort_ratio(transcript.lower(), reference_text.lower())
 
-    # Get a base assessment
-    base_assessment = pronunciation_assessment(transcribed_text)
-    
+    # Get a base assessment using confidence scores
+    base_assessment = pronunciation_assessment(transcript, word_confidences)
+
     # Adjust score based on similarity to reference
     similarity_bonus = (similarity_score - 60) * 0.2 if similarity_score > 60 else 0
     adjusted_score = min(100, base_assessment["score"] + similarity_bonus)
-    
+
     # Create a new assessment with adjusted scores
     assessment = {
         "score": round(adjusted_score, 1),
@@ -319,7 +435,7 @@ def assess_practice_phrase(transcribed_text, reference_level):
         "strengths": base_assessment["strengths"],
         "areas_for_improvement": base_assessment["areas_for_improvement"]
     }
-    
+
     # Add reference-specific feedback
     if similarity_score < 50:
         assessment["areas_for_improvement"].insert(0, "Your response differed significantly from the reference phrase")
@@ -327,17 +443,21 @@ def assess_practice_phrase(transcribed_text, reference_level):
         assessment["areas_for_improvement"].insert(0, "Try to follow the reference phrase more closely")
     else:
         assessment["strengths"].insert(0, "Good reproduction of the reference phrase")
-    
+
     return assessment
 
 # Calculate pronunciation score based on clarity metrics
-def pronunciation_assessment(transcribed_text):
+def pronunciation_assessment(transcribed_text, word_confidences=None):
     """
     Evaluate pronunciation using clarity metrics:
-    - Accuracy: How precise is their pronunciation?
+    - Accuracy: Based on Google Speech-to-Text confidence scores (how clearly words were pronounced)
     - Recognition: How well are words recognized?
     - Text complexity: Can they produce appropriate sentence structures?
     - Vocabulary variety: Range of vocabulary used
+
+    Args:
+        transcribed_text: The transcribed text
+        word_confidences: Dict mapping words to confidence scores (0.0-1.0)
     """
     words = transcribed_text.split()
     if not words:
@@ -349,36 +469,34 @@ def pronunciation_assessment(transcribed_text):
             "strengths": [],
             "areas_for_improvement": ["Check microphone connection and reduce background noise"]
         }
-    
-    # Score each word's pronunciation accuracy
+
+    # Use word confidence scores from Google Speech-to-Text
+    # This represents how clearly each word was pronounced (0.0-1.0)
     word_scores = []
     mispronounced_words = []
-    
+
+    if word_confidences is None:
+        word_confidences = {}
+
     for word in words:
-        word = word.lower()
-        if word in SPANISH_DICT:
-            score = 100  # Perfect match
-            logger.info(f"Word '{word}' found in dictionary, score: 100")
+        word_clean = word.lower().strip('.,!?;:')
+
+        # Get confidence score from Google Speech-to-Text
+        # Convert to 0-100 scale for internal scoring
+        if word_clean in word_confidences:
+            confidence = word_confidences[word_clean]
+            score = confidence * 100
+            logger.info(f"Word '{word_clean}' - Confidence: {confidence:.3f} (score: {score:.1f})")
         else:
-            # Find best match using fuzzy matching
-            best_match = None
-            best_ratio = 0
-            
-            # Check against a sample of the dictionary for performance
-            dict_sample = set(list(SPANISH_DICT)[:1000]) if len(SPANISH_DICT) > 1000 else SPANISH_DICT
-            
-            for dict_word in dict_sample:
-                ratio = fuzz.ratio(word, dict_word)
-                if ratio > best_ratio:
-                    best_ratio = ratio
-                    best_match = dict_word
-            
-            score = best_ratio
-            logger.info(f"Word '{word}' not found. Best match: '{best_match}' with score: {score}")
-            
-            if score < 80:
-                mispronounced_words.append(word)
-        
+            # Fallback: if confidence not available, use moderate score
+            # This can happen with punctuation or short words
+            score = 70
+            logger.info(f"Word '{word_clean}' - No confidence available, using default: {score}")
+
+        # Mark words with low confidence as mispronounced
+        if score < 80:
+            mispronounced_words.append(word_clean)
+
         word_scores.append(score)
     
     # Calculate average accuracy score
@@ -499,11 +617,11 @@ def generate_feedback(level):
 
     # Fallback to built-in feedback templates based on profile ranges
     # Profile C — Consistent Clarity (85-100)
-    if "Profile C" in level or score >= 85:
+    if "Profile C" in level:
         return "Your pronunciation is clear and generally consistent. Small refinements will help improve overall naturalness and ease of understanding."
 
     # Profile B — Functional Clarity (65-84)
-    elif "Profile B" in level or score >= 65:
+    elif "Profile B" in level:
         return "Your pronunciation supports functional communication, with some areas that would benefit from greater consistency."
 
     # Profile A — Initial Clarity (0-64)
@@ -740,8 +858,10 @@ def process_audio():
         logger.info(f"Received audio file of size: {len(audio_content)} bytes")
         
         # Transcribe audio
-        spoken_text = transcribe_audio(audio_content)
-        
+        transcription_data = transcribe_audio(audio_content)
+        spoken_text = transcription_data.get('transcript', '')
+        word_confidences = transcription_data.get('word_confidences', {})
+
         if not spoken_text:
             logger.warning("No transcription returned")
             return jsonify({
@@ -760,22 +880,22 @@ def process_audio():
             ],
             "tts_audio_url": None
         })
-        
+
         # Calculate assessment based on mode
         if practice_level and practice_level in REFERENCES:
             # Practice mode with reference phrase
-            assessment = assess_practice_phrase(spoken_text, practice_level)
+            assessment = assess_practice_phrase(transcription_data, practice_level)
             corrected_text = REFERENCES[practice_level]  # Use reference as corrected text
             logger.info(f"Practice mode assessment: level={practice_level}, score={assessment['score']}")
         else:
             # Free speech mode
-            assessment = assess_free_speech(spoken_text)
+            assessment = assess_free_speech(transcription_data)
             corrected_text = generate_corrected_text(spoken_text)
             logger.info(f"Free speech assessment: level={assessment['level']}, score={assessment['score']}")
-        
+
         # Generate TTS feedback
         tts_url = generate_tts_feedback(corrected_text, assessment['level'])
-        
+
         # Prepare response
         response = {
             "score": assessment['score'],
