@@ -400,343 +400,797 @@ def transcribe_audio(audio_content):
 # FACT ASSESSMENT SYSTEM - Based on Instructor's Rubric
 # =============================================================================
 
-def evaluate_pronunciation_fluency(transcript, words_data):
-    """Evaluate pronunciation, fluency, and flow (30% weight)
+# LEVEL CONFIGURATION - Expected signals by level (NOT requirements, just signals)
+LEVEL_CONFIGS = {
+    'beginner': {
+        'name': 'Beginner',
+        'expected_structures': {
+            'present': r'\b(soy|estoy|tengo|hablo|vivo|trabajo|estudio|como|hago|voy|quiero|puedo|debo|me gusta|se llama)\b',
+            'basic_modality': r'\b(me gusta|quiero|puedo|necesito)\b'
+        },
+        'expected_connectors': ['y', 'pero', 'también', 'porque'],
+        'vocabulary': {
+            'personal': ['yo', 'mi', 'me', 'mis', 'nombre', 'soy', 'tengo', 'familia', 'años', 'casa'],
+            'thematic_progression': 'personal'  # Personal vocabulary = high score at this level
+        },
+        'prompt_checklist': {
+            'introduce_yourself': ['name_origin', 'age_occupation', 'languages', 'hobbies']
+        },
+        'level_multiplier': 1.0  # Base multiplier for penalties
+    },
+    'intermediate': {
+        'name': 'Intermediate',
+        'expected_structures': {
+            'preterite': r'\b(fui|hice|comí|dije|fue|hablé|estudié|trabajé|viví|tuve|estuvo|hizo|desperté)\b',
+            'imperfect': r'\b(era|estaba|tenía|iba|hacía|hablaba|comía|vivía|trabajaba|estudiaba)\b',
+            'temporal_markers': r'\b(ayer|primero|después|luego|entonces|cuando|mientras)\b',
+            'cognitive_modality': r'\b(creo que|pienso que|me parece que|considero que)\b'
+        },
+        'expected_connectors': ['primero', 'después', 'luego', 'porque', 'pero', 'cuando', 'mientras', 'por la mañana', 'por la tarde'],
+        'vocabulary': {
+            'everyday': ['casa', 'trabajo', 'escuela', 'comer', 'estudiar', 'amigos', 'tiempo', 'día', 'hacer', 'ir'],
+            'thematic_progression': 'everyday'  # Everyday vocabulary = high score at this level
+        },
+        'prompt_checklist': {
+            'describe_your_day': ['wake_time_morning', 'activities', 'met_people', 'how_felt']
+        },
+        'level_multiplier': 1.5  # Moderate penalties for same issues
+    },
+    'advanced': {
+        'name': 'Advanced',
+        'expected_structures': {
+            'subjunctive': r'\b(sea|esté|tenga|quiera|pueda|haya|espero que|es importante que|me preocupa que|no creo que|ojalá|para que)\b',
+            'conditional': r'\b(sería|haría|iría|tendría|podría|debería|si fuera|si tuviera|si pudiera)\b',
+            'evaluative_modality': r'\b(me parece importante|es necesario que|considero que|me preocupa que|no creo que)\b',
+            'complex_connectors': r'\b(sin embargo|no obstante|por un lado|por otro lado|aunque|a pesar de|por lo tanto|debido a)\b'
+        },
+        'expected_connectors': ['sin embargo', 'no obstante', 'aunque', 'por un lado', 'por otro lado', 'por lo tanto', 'debido a', 'ya que'],
+        'vocabulary': {
+            'abstract': ['sociedad', 'cultura', 'problema', 'educación', 'importante', 'necesario', 'tecnología', 'futuro', 'desarrollar', 'híbrido'],
+            'thematic_progression': 'abstract'  # Abstract vocabulary = high score at this level
+        },
+        'prompt_checklist': {
+            'opinion_technology_education': ['positive_aspect', 'concern_doubt', 'personal_experience', 'future_idea']
+        },
+        'level_multiplier': 2.0  # Strong penalties for same issues at advanced level
+    }
+}
 
-    Based on rubric criteria:
-    - Pronunciation can be easily understood
-    - Speech is natural and delivered at a good speed
-    - Rarely seems to be searching for words
-    - Student is explaining (not reading)
+# MODALITY DETECTION - 3 layers
+MODALITY_LAYERS = {
+    'basic': {  # Basic preferences and abilities
+        'patterns': r'\b(me gusta|me encanta|quiero|puedo|necesito|prefiero)\b',
+        'weight': 0.3
+    },
+    'cognitive': {  # Cognitive/opinion modality
+        'patterns': r'\b(creo que|pienso que|me parece que|considero que|opino que)\b',
+        'weight': 0.6
+    },
+    'evaluative': {  # Evaluative/normative modality
+        'patterns': r'\b(es importante que|es necesario que|me preocupa que|me alegra que|espero que|ojalá)\b',
+        'weight': 1.0
+    }
+}
+
+# CONNECTOR TYPES - For discourse organization
+CONNECTOR_TYPES = {
+    'temporal': ['primero', 'después', 'luego', 'entonces', 'cuando', 'mientras', 'antes', 'finalmente'],
+    'causal': ['porque', 'por eso', 'ya que', 'debido a', 'por lo tanto'],
+    'adversative': ['pero', 'aunque', 'sin embargo', 'no obstante', 'a pesar de'],
+    'additive': ['y', 'también', 'además', 'asimismo'],
+    'conclusive': ['finalmente', 'en resumen', 'en conclusión']
+}
+
+# PATTERN PRIORITIES - For diagnostic feedback (never affect score)
+PATTERN_PRIORITIES = {
+    'fundamentals': {
+        'priority': 1,
+        'patterns': ['pure_vowels', 'even_syllable_rhythm']
+    },
+    'prosody': {
+        'priority': 2,
+        'patterns': ['natural_pausing', 'intonation']
+    },
+    'consonants': {
+        'priority': 3,
+        'patterns': ['soft_bdg', 'calm_ptk', 'mexican_j', 'consonant_clusters']
+    },
+    'rhotics': {
+        'priority': 4,
+        'patterns': ['tap_r', 'trill_r']
+    }
+}
+
+def evaluate_pronunciation_fluency(transcript, words_data):
+    """C1: Pronunciation Behavior (30% weight)
+
+    Evaluates functional clarity through 4 subcriteria:
+    1. Rhythm Stability - WPS standard deviation
+    2. Flow Continuity - Internal vs strategic pauses
+    3. Vowel Duration - WPS drops without pauses (vowel dragging)
+    4. Global Stability - STT confidence (acts as ceiling/floor, NOT direct penalty)
 
     Args:
         transcript: Full transcribed text
         words_data: List of word objects with timing and confidence
 
     Returns:
-        dict with 'score' (0-100) and 'details'
+        dict with 'score' (0-100), 'details', and 'patterns_activated'
     """
     if not words_data or len(words_data) == 0:
         return {
             'score': 70,
             'details': {
-                'accuracy': 70,
-                'speaking_rate': 0,
-                'fluency': 70,
+                'rhythm_stability': 70,
+                'flow_continuity': 70,
+                'vowel_duration': 70,
+                'global_stability': 70,
                 'note': 'No timing data available'
-            }
+            },
+            'patterns_activated': []
         }
 
-    # 1. ACCURACY - Based on Google Speech API confidence scores
-    confidences = [w['confidence'] for w in words_data if 'confidence' in w]
-    if confidences:
-        avg_confidence = sum(confidences) / len(confidences)
-        accuracy_score = avg_confidence * 100
+    patterns_activated = []
 
-        # Penalize if many words have low confidence
-        low_confidence_count = sum(1 for c in confidences if c < 0.6)
-        if low_confidence_count > len(confidences) * 0.3:  # >30% unclear
-            accuracy_score -= 15
-    else:
-        accuracy_score = 70
-
-    # 2. SPEAKING RATE - Natural speed (words per second)
+    # --- SUBCRITERION 1.1: RHYTHM STABILITY ---
+    # Measure WPS standard deviation to detect erratic rhythm
     try:
+        # Calculate WPS in 3-second windows
         duration = words_data[-1]['end_time'] - words_data[0]['start_time']
-        if duration > 0:
-            words_per_second = len(words_data) / duration
+        if duration > 3:
+            window_wps = []
+            window_size = 3.0  # 3-second windows
+            start_time = words_data[0]['start_time']
 
-            # Optimal range: 2.5-4.0 words/sec (~150-240 words/min)
-            if 2.5 <= words_per_second <= 4.0:
-                rate_score = 100
-            elif 2.0 <= words_per_second <= 5.0:
-                rate_score = 80
-            elif 1.5 <= words_per_second <= 5.5:
-                rate_score = 65
+            for i in range(int(duration // window_size)):
+                window_start = start_time + i * window_size
+                window_end = window_start + window_size
+                words_in_window = [
+                    w for w in words_data
+                    if window_start <= w['start_time'] < window_end
+                ]
+                if words_in_window:
+                    wps = len(words_in_window) / window_size
+                    window_wps.append(wps)
+
+            if len(window_wps) > 1:
+                wps_std_dev = statistics.stdev(window_wps)
+
+                # Score based on deviation
+                if wps_std_dev < 0.3:
+                    rhythm_score = 95
+                elif wps_std_dev < 0.6:
+                    rhythm_score = 75
+                    patterns_activated.append(('even_syllable_rhythm', 'medium'))
+                else:
+                    rhythm_score = 55
+                    patterns_activated.append(('even_syllable_rhythm', 'high'))
             else:
-                rate_score = 50
+                rhythm_score = 75
+                wps_std_dev = 0
         else:
-            rate_score = 70
-            words_per_second = 0
+            # Too short for window analysis
+            rhythm_score = 75
+            wps_std_dev = 0
     except:
-        rate_score = 70
-        words_per_second = 0
+        rhythm_score = 70
+        wps_std_dev = 0
 
-    # 3. FLUENCY - Pauses indicate "searching for words"
+    # --- SUBCRITERION 1.2: FLOW CONTINUITY ---
+    # Distinguish internal pauses (bad) from strategic pauses (good)
     try:
-        pauses = []
+        internal_pauses = 0
+        strategic_pauses = 0
+
         for i in range(len(words_data) - 1):
             gap = words_data[i+1]['start_time'] - words_data[i]['end_time']
-            if gap > 0.5:  # Noticeable pause
-                pauses.append(gap)
 
-        long_pauses = [p for p in pauses if p > 1.5]  # Long pauses = searching
+            if gap > 1.5:  # Long pause detected
+                # Heuristic: pause after connector/end-of-idea words = strategic
+                current_word = words_data[i]['word'].lower()
+                strategic_markers = ['.', 'entonces', 'luego', 'finalmente', 'además', 'pero']
 
-        if len(long_pauses) == 0:
-            fluency_score = 100
-        elif len(long_pauses) <= 1:
-            fluency_score = 85
-        elif len(long_pauses) <= 3:
-            fluency_score = 70
+                is_strategic = any(marker in current_word for marker in strategic_markers)
+
+                if is_strategic:
+                    strategic_pauses += 1
+                else:
+                    internal_pauses += 1
+
+        # Score based on internal vs strategic
+        if internal_pauses == 0:
+            flow_score = 95
+        elif internal_pauses <= 2:
+            flow_score = 75
+            patterns_activated.append(('natural_pausing', 'medium'))
         else:
-            fluency_score = 55
-    except:
-        fluency_score = 70
-        long_pauses = []
+            flow_score = 55
+            patterns_activated.append(('natural_pausing', 'high'))
 
-    # COMPOSITE SCORE (weighted)
-    # Accuracy is most important for pronunciation, then fluency, then rate
-    final_score = (
-        accuracy_score * 0.50 +
-        fluency_score * 0.30 +
-        rate_score * 0.20
-    )
+    except:
+        flow_score = 70
+        internal_pauses = 0
+        strategic_pauses = 0
+
+    # --- SUBCRITERION 1.3: VOWEL DURATION ---
+    # Detect WPS drops without corresponding long pauses (vowel dragging)
+    try:
+        wps_collapses = 0
+
+        if len(words_data) >= 4:
+            # Calculate WPS for each word pair
+            for i in range(len(words_data) - 3):
+                # Get WPS for segments of 2 words each
+                segment1_duration = words_data[i+1]['end_time'] - words_data[i]['start_time']
+                segment2_duration = words_data[i+3]['end_time'] - words_data[i+2]['start_time']
+
+                if segment1_duration > 0 and segment2_duration > 0:
+                    wps1 = 2 / segment1_duration
+                    wps2 = 2 / segment2_duration
+
+                    # Detect collapse (>40% drop)
+                    if wps2 < wps1 * 0.6:
+                        # Check if there's a long pause explaining the drop
+                        gap = words_data[i+2]['start_time'] - words_data[i+1]['end_time']
+                        if gap < 1.5:  # No long pause = vowel dragging
+                            wps_collapses += 1
+
+        if wps_collapses == 0:
+            vowel_score = 95
+        elif wps_collapses <= 2:
+            vowel_score = 75
+            patterns_activated.append(('pure_vowels', 'medium'))
+        else:
+            vowel_score = 55
+            patterns_activated.append(('pure_vowels', 'high'))
+
+    except:
+        vowel_score = 70
+        wps_collapses = 0
+
+    # --- SUBCRITERION 1.4: GLOBAL STABILITY (STT Confidence) ---
+    # This is used as a CEILING/FLOOR, not a direct score
+    try:
+        confidences = [w['confidence'] for w in words_data if 'confidence' in w]
+        if confidences:
+            avg_confidence = sum(confidences) / len(confidences)
+            stt_confidence_pct = avg_confidence * 100
+        else:
+            stt_confidence_pct = 75
+    except:
+        stt_confidence_pct = 75
+
+    # --- CALCULATE C1 SCORE ---
+    # Average of 3 behavioral subcriteria (NOT including STT confidence directly)
+    base_c1_score = (rhythm_score + flow_score + vowel_score) / 3
+
+    # --- APPLY STT CONFIDENCE AS CEILING ---
+    # STT confidence determines maximum possible score
+    if stt_confidence_pct >= 80:
+        # No restriction
+        c1_score = base_c1_score
+    elif stt_confidence_pct >= 70:
+        # Cap at 85
+        c1_score = min(85, base_c1_score)
+        patterns_activated.append(('fundamentals_needed', 'medium'))
+    else:
+        # Cap at 70, activate fundamentals
+        c1_score = min(70, base_c1_score)
+        patterns_activated.append(('fundamentals_needed', 'high'))
+
+    return {
+        'score': round(c1_score, 1),
+        'details': {
+            'rhythm_stability': round(rhythm_score, 1),
+            'flow_continuity': round(flow_score, 1),
+            'vowel_duration': round(vowel_score, 1),
+            'global_stability': round(stt_confidence_pct, 1),
+            'wps_std_dev': round(wps_std_dev, 2) if wps_std_dev else 0,
+            'internal_pauses': internal_pauses,
+            'strategic_pauses': strategic_pauses,
+            'wps_collapses': wps_collapses
+        },
+        'patterns_activated': patterns_activated
+    }
+
+
+def evaluate_functions(transcript, level='intermediate'):
+    """C2: Functional Language Control (25% weight)
+
+    Evaluates communicative intent through:
+    1. Level alignment - Uses expected structures for the task
+    2. Modality (3 layers) - Expresses intention, opinion, evaluation
+    3. Consistency - Sustained use (≥3 instances)
+    4. Functional clarity - Clear communicative purpose
+
+    Key principle: Subjunctive is a BONUS signal, not a requirement.
+    Evaluative modality without perfect subjunctive still counts.
+
+    Args:
+        transcript: Full transcribed text
+        level: Expected level (beginner/intermediate/advanced)
+
+    Returns:
+        dict with 'score' (0-100), 'detected', and 'modality_score'
+    """
+    text_lower = transcript.lower()
+    detected = {}
+    modality_detected = {}
+
+    # --- DETECT BASIC STRUCTURES ---
+    # Present (always relevant)
+    present_patterns = r'\b(soy|estoy|tengo|hablo|vivo|trabajo|estudio|como|hago|voy|es|son)\b'
+    present_matches = re.findall(present_patterns, text_lower)
+    detected['present'] = len(present_matches)
+
+    # Past tense (preterite)
+    preterite_patterns = r'\b(fui|hice|comí|dije|fue|hablé|estudié|trabajé|viví|tuve|estuvo|hizo|desperté|regresé)\b'
+    preterite_matches = re.findall(preterite_patterns, text_lower)
+    detected['preterite'] = len(preterite_matches)
+
+    # Past tense (imperfect)
+    imperfect_patterns = r'\b(era|estaba|tenía|iba|hacía|hablaba|comía|vivía|trabajaba|estudiaba)\b'
+    imperfect_matches = re.findall(imperfect_patterns, text_lower)
+    detected['imperfect'] = len(imperfect_matches)
+
+    # Future
+    future_patterns = r'\b(voy a|va a|vamos a|iré|será|haré|tendré|estaré|podré)\b'
+    future_matches = re.findall(future_patterns, text_lower)
+    detected['future'] = len(future_matches)
+
+    # Subjunctive (BONUS signal, not requirement)
+    subjunctive_patterns = r'\b(sea|esté|tenga|quiera|pueda|haya|espero que|es importante que|me preocupa que|no creo que|ojalá|para que)\b'
+    subjunctive_matches = re.findall(subjunctive_patterns, text_lower)
+    detected['subjunctive'] = len(subjunctive_matches)
+
+    # Conditional
+    conditional_patterns = r'\b(sería|haría|iría|tendría|podría|debería|si fuera|si tuviera|si pudiera)\b'
+    conditional_matches = re.findall(conditional_patterns, text_lower)
+    detected['conditional'] = len(conditional_matches)
+
+    # --- DETECT MODALITY (3 LAYERS) ---
+    # Layer 1: Basic modality (preferences, abilities)
+    basic_modality = re.findall(MODALITY_LAYERS['basic']['patterns'], text_lower)
+    modality_detected['basic'] = len(basic_modality)
+
+    # Layer 2: Cognitive modality (opinions, beliefs)
+    cognitive_modality = re.findall(MODALITY_LAYERS['cognitive']['patterns'], text_lower)
+    modality_detected['cognitive'] = len(cognitive_modality)
+
+    # Layer 3: Evaluative modality (judgments, norms)
+    evaluative_modality = re.findall(MODALITY_LAYERS['evaluative']['patterns'], text_lower)
+    modality_detected['evaluative'] = len(evaluative_modality)
+
+    # Calculate modality score (weighted by layer)
+    modality_score = 0
+    if modality_detected['basic'] > 0:
+        modality_score += 30 * MODALITY_LAYERS['basic']['weight']
+    if modality_detected['cognitive'] > 0:
+        modality_score += 30 * MODALITY_LAYERS['cognitive']['weight']
+    if modality_detected['evaluative'] > 0:
+        modality_score += 40 * MODALITY_LAYERS['evaluative']['weight']
+
+    # --- CALCULATE BASE SCORE (Level-appropriate structures) ---
+    base_score = 50
+
+    # BEGINNER level expectations
+    if level == 'beginner':
+        if detected['present'] >= 3:
+            base_score = 75
+        if modality_detected['basic'] >= 1:
+            base_score = min(95, base_score + 15)
+
+    # INTERMEDIATE level expectations
+    elif level == 'intermediate':
+        if detected['preterite'] >= 3 or detected['imperfect'] >= 3:
+            base_score = 75
+        if (detected['preterite'] + detected['imperfect']) >= 5:
+            base_score = 85
+        if modality_detected['cognitive'] >= 1:
+            base_score = min(95, base_score + 10)
+
+    # ADVANCED level expectations
+    elif level == 'advanced':
+        has_modal = modality_detected['evaluative'] >= 1 or modality_detected['cognitive'] >= 2
+
+        if has_modal:
+            base_score = 80  # Modality is critical at advanced level
+
+        # Subjunctive/conditional = BONUS (not requirement)
+        if detected['subjunctive'] >= 2 or detected['conditional'] >= 2:
+            base_score = min(100, base_score + 15)
+
+        # Combination of modality + complex structures = very high
+        if has_modal and (detected['subjunctive'] >= 1 or detected['conditional'] >= 1):
+            base_score = 95
+
+    # --- CONSISTENCY BONUS ---
+    # Reward sustained use (≥3 instances of main function)
+    total_structural_uses = sum([
+        detected['present'], detected['preterite'], detected['imperfect'],
+        detected['future'], detected['subjunctive'], detected['conditional']
+    ])
+
+    if total_structural_uses >= 8:
+        consistency_bonus = 5
+    elif total_structural_uses >= 5:
+        consistency_bonus = 3
+    else:
+        consistency_bonus = 0
+
+    final_score = min(100, base_score + modality_score + consistency_bonus)
+
+    return {
+        'score': round(final_score, 1),
+        'detected': detected,
+        'modality_detected': modality_detected,
+        'modality_score': round(modality_score, 1)
+    }
+
+
+def evaluate_text_type(transcript, words_data=None):
+    """C3: Discourse Organization (20% weight)
+
+    Evaluates prosodic discourse structure through:
+    1. Functional sentences - Strategic pauses OR connectors (NOT punctuation)
+    2. Connector use - Types and variety (temporal, causal, adversative)
+    3. Discourse type - Narrative, descriptive, or argumentative
+    4. Cohesion - Ideas connected vs isolated
+
+    Key principle: A "functional sentence" can exist without a pause if there's a connector.
+    Long fluent discourse is NOT penalized if it maintains semantic coherence.
+
+    Args:
+        transcript: Full transcribed text
+        words_data: Word timing data (optional, for pause-based analysis)
+
+    Returns:
+        dict with 'score' (0-100), 'details', and 'discourse_type'
+    """
+    words = transcript.split()
+    word_count = len(words)
+    text_lower = transcript.lower()
+
+    # --- DETECT CONNECTORS (by type) ---
+    connector_counts = {}
+    total_connectors = 0
+
+    for conn_type, conn_list in CONNECTOR_TYPES.items():
+        count = sum(1 for c in conn_list if c in text_lower)
+        connector_counts[conn_type] = count
+        total_connectors += count
+
+    # Connector variety (how many types used)
+    connector_variety = sum(1 for count in connector_counts.values() if count > 0)
+
+    # --- COUNT FUNCTIONAL SENTENCES ---
+    # Method 1: Use strategic pauses if available
+    if words_data and len(words_data) > 0:
+        functional_sentences = 1  # Start with 1 (first utterance)
+
+        for i in range(len(words_data) - 1):
+            gap = words_data[i+1]['start_time'] - words_data[i]['end_time']
+
+            # Strategic pause = end of sentence
+            if gap > 1.5:
+                current_word = words_data[i]['word'].lower()
+                # Check if pause follows a connector or end-of-idea marker
+                strategic_markers = ['entonces', 'luego', 'finalmente', 'además', 'pero', 'porque']
+                if any(marker in current_word for marker in strategic_markers):
+                    functional_sentences += 1
+
+    # Method 2: Fallback - count by connectors
+    else:
+        # Each connector implies a sentence boundary
+        functional_sentences = 1 + (total_connectors if total_connectors > 0 else 0)
+
+    # --- DETECT DISCOURSE TYPE ---
+    discourse_type = 'conversational'
+
+    # Academic discourse markers
+    academic_markers = ['considero que', 'es importante', 'es necesario', 'me parece importante',
+                        'por lo tanto', 'sin embargo', 'no obstante', 'debido a']
+    academic_count = sum(1 for marker in academic_markers if marker in text_lower)
+
+    # Narrative markers
+    narrative_markers = ['ayer', 'primero', 'después', 'luego', 'entonces', 'finalmente']
+    narrative_count = sum(1 for marker in narrative_markers if marker in text_lower)
+
+    # Argumentative markers
+    argumentative_markers = ['creo que', 'pienso que', 'me preocupa', 'aunque', 'sin embargo', 'por un lado']
+    argumentative_count = sum(1 for marker in argumentative_markers if marker in text_lower)
+
+    # Determine dominant type
+    if academic_count >= 2:
+        discourse_type = 'academic'
+    elif argumentative_count >= 2:
+        discourse_type = 'argumentative'
+    elif narrative_count >= 3:
+        discourse_type = 'narrative'
+    else:
+        discourse_type = 'descriptive'
+
+    # --- CALCULATE SCORE ---
+    score = 40  # Base
+
+    # Level 1: Very short (< 15 words)
+    if word_count < 15:
+        score = 50
+
+    # Level 2: Simple discourse (15-30 words, few connectors)
+    elif word_count < 30 or total_connectors == 0:
+        score = 60
+
+    # Level 3: Connected discourse (30+ words, some connectors)
+    elif word_count >= 30 and total_connectors >= 2:
+        score = 75
+
+    # Level 4: Organized discourse (multiple functional sentences + variety)
+    elif functional_sentences >= 3 and connector_variety >= 2:
+        score = 85
+
+    # Level 5: Academic/Extended discourse (complex connectors + length)
+    elif discourse_type in ['academic', 'argumentative'] and connector_variety >= 3:
+        score = 95
+
+    # BONUS: Very well-organized extended discourse
+    if word_count >= 60 and functional_sentences >= 5 and connector_variety >= 3:
+        score = min(100, score + 5)
+
+    return {
+        'score': round(score, 1),
+        'details': {
+            'word_count': word_count,
+            'functional_sentences': functional_sentences,
+            'total_connectors': total_connectors,
+            'connector_variety': connector_variety,
+            'connector_counts': connector_counts,
+            'discourse_type': discourse_type
+        }
+    }
+
+
+def evaluate_context(transcript, level='intermediate'):
+    """C4: Contextual Lexical Richness (15% weight)
+
+    Evaluates integrated vocabulary use through:
+    1. Variety ratio - Unique words / total words
+    2. Thematic progression - Relative to level (personal/everyday/abstract)
+    3. Academic vocabulary - BONUS signal, not requirement
+    4. Function words - Acceptable repetition (not penalized)
+
+    Key principle: Progresion is relative to level.
+    - Beginner: Personal vocabulary = high score
+    - Intermediate: Everyday vocabulary = high score
+    - Advanced: Abstract vocabulary = high score
+
+    Args:
+        transcript: Full transcribed text
+        level: Expected level (beginner/intermediate/advanced)
+
+    Returns:
+        dict with 'score' (0-100), 'details', and 'thematic_level'
+    """
+    words = transcript.lower().split()
+    if not words:
+        return {'score': 50, 'details': {}, 'thematic_level': 'none'}
+
+    # --- CALCULATE VARIETY RATIO ---
+    # Remove punctuation from words
+    clean_words = [re.sub(r'[^\w\s]', '', w) for w in words]
+    clean_words = [w for w in clean_words if w]
+
+    # Exclude common function words from variety calculation
+    function_words = ['el', 'la', 'los', 'las', 'un', 'una', 'de', 'del', 'a', 'al',
+                     'en', 'con', 'por', 'para', 'que', 'y', 'o', 'pero', 'es', 'son']
+    content_words = [w for w in clean_words if w not in function_words]
+
+    if len(content_words) == 0:
+        variety_ratio = 0.5
+    else:
+        unique_content = set(content_words)
+        variety_ratio = len(unique_content) / len(content_words)
+
+    # --- DETECT THEMATIC LEVEL ---
+    text_lower = transcript.lower()
+
+    # Personal vocabulary
+    personal_words = ['yo', 'mi', 'me', 'mis', 'nombre', 'soy', 'tengo', 'familia', 'años', 'casa', 'amigo']
+    personal_count = sum(1 for w in personal_words if w in text_lower)
+
+    # Everyday vocabulary
+    everyday_words = ['trabajo', 'escuela', 'comer', 'estudiar', 'tiempo', 'día', 'hacer', 'ir',
+                     'desperté', 'desayuné', 'almorcé', 'regresé', 'hablé']
+    everyday_count = sum(1 for w in everyday_words if w in text_lower)
+
+    # Abstract/academic vocabulary (BONUS signal)
+    abstract_words = ['sociedad', 'cultura', 'problema', 'educación', 'importante', 'necesario',
+                     'tecnología', 'futuro', 'desarrollar', 'híbrido', 'considero', 'democratiza',
+                     'acentúa', 'brecha', 'integrando']
+    abstract_count = sum(1 for w in abstract_words if w in text_lower)
+
+    # Determine thematic level
+    if abstract_count >= 2:
+        thematic_level = 'abstract'
+    elif everyday_count >= 3:
+        thematic_level = 'everyday'
+    elif personal_count >= 2:
+        thematic_level = 'personal'
+    else:
+        thematic_level = 'basic'
+
+    # --- CALCULATE SCORE (relative to level) ---
+    base_score = 50
+
+    # BEGINNER level: Personal vocabulary = high score
+    if level == 'beginner':
+        if thematic_level == 'personal' and variety_ratio >= 0.50:
+            base_score = 85
+        elif thematic_level == 'personal':
+            base_score = 75
+        elif variety_ratio >= 0.60:
+            base_score = 70
+        else:
+            base_score = 60
+
+    # INTERMEDIATE level: Everyday vocabulary = high score
+    elif level == 'intermediate':
+        if thematic_level == 'everyday' and variety_ratio >= 0.65:
+            base_score = 85
+        elif thematic_level == 'everyday':
+            base_score = 75
+        elif thematic_level == 'abstract':
+            base_score = 90  # Bonus for going beyond expected
+        elif variety_ratio >= 0.60:
+            base_score = 65
+        else:
+            base_score = 55
+
+    # ADVANCED level: Abstract vocabulary = high score
+    elif level == 'advanced':
+        if thematic_level == 'abstract' and variety_ratio >= 0.70:
+            base_score = 95
+        elif thematic_level == 'abstract':
+            base_score = 85
+        elif thematic_level == 'everyday':
+            base_score = 70  # Not penalized, but not ideal for advanced
+        else:
+            base_score = 60
+
+    # --- BONUS for high variety regardless of level ---
+    if variety_ratio >= 0.80:
+        variety_bonus = 5
+    elif variety_ratio >= 0.75:
+        variety_bonus = 3
+    else:
+        variety_bonus = 0
+
+    final_score = min(100, base_score + variety_bonus)
 
     return {
         'score': round(final_score, 1),
         'details': {
-            'accuracy': round(accuracy_score, 1),
-            'speaking_rate': round(rate_score, 1),
-            'fluency': round(fluency_score, 1),
-            'words_per_second': round(words_per_second, 2) if words_per_second else 0,
-            'long_pauses': len(long_pauses) if long_pauses else 0
-        }
-    }
-
-
-def evaluate_functions(transcript):
-    """Evaluate grammatical functions and control (25% weight)
-
-    Based on rubric criteria:
-    - Controls all/most structures used in SP103
-    - Grammatical errors are not evident or do not hinder communication
-
-    Detects ability to use various grammatical structures:
-    - Present tense (basic)
-    - Past tense (intermediate)
-    - Future tense (intermediate-advanced)
-    - Complex structures like subjunctive/conditional (advanced)
-
-    Returns:
-        dict with 'score' (0-100) and 'detected' structures
-    """
-    text_lower = transcript.lower()
-
-    score = 50  # Base score
-    detected = {}
-
-    # PRESENT TENSE (basic - should be present)
-    present_patterns = r'\b(soy|estoy|tengo|hablo|vivo|trabajo|estudio|como|hago|voy|quiero|puedo|debo)\b'
-    has_present = bool(re.search(present_patterns, text_lower))
-    detected['present'] = has_present
-
-    # PAST TENSE - Preterite (intermediate)
-    preterite_patterns = r'\b(fui|hice|comí|dije|fue|hablé|estudié|trabajé|viví|tuve|estuvo|hizo)\b'
-    has_preterite = bool(re.search(preterite_patterns, text_lower))
-    detected['preterite'] = has_preterite
-
-    # PAST TENSE - Imperfect (intermediate)
-    imperfect_patterns = r'\b(era|estaba|tenía|iba|hacía|hablaba|comía|vivía|trabajaba|estudiaba)\b'
-    has_imperfect = bool(re.search(imperfect_patterns, text_lower))
-    detected['imperfect'] = has_imperfect
-
-    # FUTURE TENSE (intermediate-advanced)
-    future_patterns = r'\b(voy a|va a|vamos a|iré|será|haré|tendré|estaré|podré)\b'
-    has_future = bool(re.search(future_patterns, text_lower))
-    detected['future'] = has_future
-
-    # COMPLEX STRUCTURES - Subjunctive (advanced)
-    subjunctive_patterns = r'\b(sea|esté|tenga|quiera|pueda|espero que|es importante que|ojalá)\b'
-    has_subjunctive = bool(re.search(subjunctive_patterns, text_lower))
-    detected['subjunctive'] = has_subjunctive
-
-    # COMPLEX STRUCTURES - Conditional/Hypothetical (advanced)
-    conditional_patterns = r'\b(sería|haría|iría|tendría|si fuera|si tuviera|si pudiera)\b'
-    has_conditional = bool(re.search(conditional_patterns, text_lower))
-    detected['conditional'] = has_conditional
-
-    # SCORING PROGRESSION
-    if has_present:
-        score = 60  # Basic present tense
-
-    if has_preterite or has_imperfect:
-        score = 72  # Can use past tense
-
-    if (has_preterite or has_imperfect) and has_future:
-        score = 83  # Can narrate across time frames
-
-    if has_subjunctive or has_conditional:
-        score = 92  # Advanced structures
-
-    if (has_preterite or has_imperfect) and has_future and (has_subjunctive or has_conditional):
-        score = 97  # Full range of structures
-
-    return {
-        'score': score,
-        'detected': detected
-    }
-
-
-def evaluate_text_type(transcript):
-    """Evaluate discourse complexity and organization (25% weight)
-
-    Based on rubric criteria:
-    - Conveys ideas by speaking in complete, multiple sentences consistently
-    - Student is explaining (as opposed to reading/listing)
-    - Speech is natural and organized
-
-    Analyzes:
-    - Sentence count and length
-    - Use of connectors (indicates explanation vs listing)
-    - Overall discourse structure
-
-    Returns:
-        dict with 'score' (0-100) and 'details'
-    """
-    words = transcript.split()
-    word_count = len(words)
-
-    # Split into sentences
-    sentences = [s.strip() for s in re.split(r'[.!?]+', transcript) if s.strip()]
-    sentence_count = len(sentences)
-    avg_words_per_sentence = word_count / sentence_count if sentence_count > 0 else 0
-
-    # CONNECTORS - Indicate explanation vs listing
-    connectors = [
-        'porque', 'pero', 'aunque', 'sin embargo', 'además', 'también',
-        'cuando', 'si', 'para', 'por eso', 'entonces', 'mientras',
-        'como', 'ya que', 'puesto que', 'por lo tanto'
-    ]
-    text_lower = transcript.lower()
-    connector_count = sum(1 for c in connectors if c in text_lower)
-
-    # SCORING based on discourse complexity
-    score = 40
-
-    # Level 1: Isolated words/phrases (<10 words)
-    if word_count < 10:
-        score = 45
-
-    # Level 2: Simple sentences (10-20 words, 1-2 sentences)
-    elif word_count < 20 or sentence_count <= 2:
-        score = 58
-
-    # Level 3: Multiple sentences with some connection (3+ sentences, 1-2 connectors)
-    elif sentence_count >= 3 and connector_count >= 1:
-        score = 72
-
-    # Level 4: Connected discourse (4+ sentences, 3+ connectors)
-    elif sentence_count >= 4 and connector_count >= 3:
-        score = 85
-
-    # Level 5: Extended, organized discourse (long sentences, many connectors)
-    elif avg_words_per_sentence >= 8 and connector_count >= 4:
-        score = 95
-
-    # Bonus for very well-organized speech
-    if sentence_count >= 5 and connector_count >= 5 and avg_words_per_sentence >= 10:
-        score = min(100, score + 5)
-
-    return {
-        'score': score,
-        'details': {
-            'word_count': word_count,
-            'sentence_count': sentence_count,
-            'connector_count': connector_count,
-            'avg_words_per_sentence': round(avg_words_per_sentence, 1)
-        }
-    }
-
-
-def evaluate_context(transcript):
-    """Evaluate vocabulary variety and topic range (20% weight)
-
-    Based on rubric criteria:
-    - Demonstrates extensive/ample vocabulary from SP103
-    - Uses appropriate words and does not repeat words often
-    - Can handle personal, everyday, and/or public interest topics
-
-    Analyzes:
-    - Unique word ratio (variety)
-    - Topic coverage
-
-    Returns:
-        dict with 'score' (0-100) and 'details'
-    """
-    words = transcript.lower().split()
-    if not words:
-        return {'score': 50, 'details': {}}
-
-    # Remove punctuation from words for accurate counting
-    clean_words = [re.sub(r'[^\w\s]', '', w) for w in words]
-    clean_words = [w for w in clean_words if w]  # Remove empty strings
-
-    unique_words = set(clean_words)
-    variety_ratio = len(unique_words) / len(clean_words) if clean_words else 0
-
-    # TOPIC DETECTION
-    text_lower = transcript.lower()
-
-    # Personal topics (novice level)
-    personal_words = ['yo', 'mi', 'me', 'mis', 'nombre', 'soy', 'tengo', 'familia', 'años']
-    personal_count = sum(1 for w in personal_words if w in text_lower)
-
-    # Everyday topics (intermediate level)
-    everyday_words = ['casa', 'trabajo', 'escuela', 'comer', 'estudiar', 'amigos',
-                      'tiempo', 'día', 'hacer', 'ir', 'ver', 'gustar']
-    everyday_count = sum(1 for w in everyday_words if w in text_lower)
-
-    # Public/Abstract topics (advanced level)
-    public_words = ['sociedad', 'cultura', 'problema', 'educación', 'importante',
-                    'necesario', 'tecnología', 'política', 'economía', 'opinión']
-    public_count = sum(1 for w in public_words if w in text_lower)
-
-    # SCORING
-    score = 50
-
-    # High variety + advanced topics
-    if variety_ratio >= 0.75 and public_count >= 2:
-        score = 92
-
-    # High variety + everyday topics
-    elif variety_ratio >= 0.70 and (everyday_count >= 3 or public_count >= 1):
-        score = 80
-
-    # Good variety + everyday topics
-    elif variety_ratio >= 0.60 and everyday_count >= 2:
-        score = 70
-
-    # Moderate variety + personal topics
-    elif variety_ratio >= 0.50:
-        score = 60
-
-    # Low variety (lots of repetition)
-    else:
-        score = 50
-
-    return {
-        'score': score,
-        'details': {
             'variety_ratio': round(variety_ratio, 2),
-            'unique_words': len(unique_words),
-            'total_words': len(clean_words),
-            'topics': {
-                'personal': personal_count > 0,
-                'everyday': everyday_count >= 2,
-                'public': public_count > 0
+            'unique_content_words': len(set(content_words)),
+            'total_content_words': len(content_words),
+            'thematic_counts': {
+                'personal': personal_count,
+                'everyday': everyday_count,
+                'abstract': abstract_count
             }
+        },
+        'thematic_level': thematic_level
+    }
+
+
+def evaluate_prompt_alignment(transcript, c1_score, c2_score, c3_score, c4_score, prompt_type='free_speech'):
+    """C5: Prompt Alignment (10% weight)
+
+    Evaluates whether the student answered what was asked through:
+    1. Checklist fulfillment - Covered expected points
+    2. Global clarity - Average of C1-C4
+
+    Key principle: Does NOT penalize creativity, only verifies minimal functional coverage.
+
+    Args:
+        transcript: Full transcribed text
+        c1_score, c2_score, c3_score, c4_score: Scores from other criteria
+        prompt_type: Type of prompt (free_speech or prompt-specific)
+
+    Returns:
+        dict with 'score' (0-100), 'details', and 'fulfillment_pct'
+    """
+    text_lower = transcript.lower()
+
+    # --- CALCULATE GLOBAL CLARITY (average C1-C4) ---
+    global_clarity = (c1_score + c2_score + c3_score + c4_score) / 4
+
+    # --- CHECK PROMPT FULFILLMENT ---
+    fulfillment_score = 85  # Default for free speech (no strict checklist)
+
+    # For specific prompts, check if key elements are present
+    if prompt_type == 'introduce_yourself':
+        checklist_items = {
+            'name_origin': any(marker in text_lower for marker in ['llamo', 'nombre', 'soy de', 'vengo de']),
+            'age_occupation': any(marker in text_lower for marker in ['años', 'tengo', 'estudiante', 'trabajo']),
+            'languages': any(marker in text_lower for marker in ['hablo', 'español', 'inglés', 'idioma']),
+            'hobbies': any(marker in text_lower for marker in ['gusta', 'me encanta', 'interesa', 'hobby'])
+        }
+        covered = sum(1 for v in checklist_items.values() if v)
+        fulfillment_pct = (covered / len(checklist_items)) * 100
+
+        if fulfillment_pct == 100:
+            fulfillment_score = 95
+        elif fulfillment_pct >= 75:
+            fulfillment_score = 85
+        elif fulfillment_pct >= 50:
+            fulfillment_score = 70
+        else:
+            fulfillment_score = 55
+
+    elif prompt_type == 'describe_your_day':
+        checklist_items = {
+            'wake_time': any(marker in text_lower for marker in ['desperté', 'me levanté', 'hora', 'mañana']),
+            'activities': any(marker in text_lower for marker in ['fui', 'hice', 'trabajé', 'comí', 'estudié']),
+            'met_people': any(marker in text_lower for marker in ['amigo', 'familia', 'colega', 'hablé con', 'vi a']),
+            'how_felt': any(marker in text_lower for marker in ['estaba', 'me sentí', 'contento', 'cansado', 'feliz'])
+        }
+        covered = sum(1 for v in checklist_items.values() if v)
+        fulfillment_pct = (covered / len(checklist_items)) * 100
+
+        if fulfillment_pct == 100:
+            fulfillment_score = 95
+        elif fulfillment_pct >= 75:
+            fulfillment_score = 85
+        elif fulfillment_pct >= 50:
+            fulfillment_score = 70
+        else:
+            fulfillment_score = 55
+
+    elif prompt_type == 'opinion_technology_education':
+        checklist_items = {
+            'positive_aspect': any(marker in text_lower for marker in ['importante', 'positivo', 'beneficio', 'útil', 'permite']),
+            'concern': any(marker in text_lower for marker in ['preocupa', 'problema', 'desafío', 'dificultad', 'sin embargo']),
+            'personal_experience': any(marker in text_lower for marker in ['mi experiencia', 'he usado', 'he aprendido', 'en mi caso']),
+            'future_idea': any(marker in text_lower for marker in ['futuro', 'debería', 'necesario que', 'espero que', 'será'])
+        }
+        covered = sum(1 for v in checklist_items.values() if v)
+        fulfillment_pct = (covered / len(checklist_items)) * 100
+
+        if fulfillment_pct == 100:
+            fulfillment_score = 95
+        elif fulfillment_pct >= 75:
+            fulfillment_score = 85
+        elif fulfillment_pct >= 50:
+            fulfillment_score = 70
+        else:
+            fulfillment_score = 55
+    else:
+        fulfillment_pct = 100  # Free speech, no specific requirements
+
+    # --- CALCULATE C5 SCORE ---
+    # Average of fulfillment and global clarity
+    c5_score = (fulfillment_score + global_clarity) / 2
+
+    return {
+        'score': round(c5_score, 1),
+        'details': {
+            'fulfillment': round(fulfillment_score, 1),
+            'global_clarity': round(global_clarity, 1),
+            'fulfillment_pct': round(fulfillment_pct, 1) if prompt_type != 'free_speech' else 100
         }
     }
 
 
-def actfl_fact_assessment(transcription_data):
+def actfl_fact_assessment(transcription_data, level='intermediate', prompt_type='free_speech'):
     """Main FACT assessment function based on instructor's rubric
 
-    Weights (aligned with rubric):
-    - Pronunciation & Fluency: 30%
-    - Functions (Grammar): 25%
-    - Text Type (Complexity): 25%
-    - Context (Vocabulary): 20%
+    NEW Weights (final specification):
+    - C1: Pronunciation Behavior: 30%
+    - C2: Functional Language Control: 25%
+    - C3: Discourse Organization: 20%
+    - C4: Contextual Lexical Richness: 15%
+    - C5: Prompt Alignment: 10%
 
     Score ranges:
     - 85-100: Exceeds Expectations
@@ -746,9 +1200,11 @@ def actfl_fact_assessment(transcription_data):
 
     Args:
         transcription_data: dict with 'transcript' and 'words'
+        level: Expected level (beginner/intermediate/advanced)
+        prompt_type: Type of prompt for C5 alignment check
 
     Returns:
-        dict with score, feedback, strengths, areas_for_improvement
+        dict with score, feedback, strengths, areas_for_improvement, patterns
     """
     transcript = transcription_data.get('transcript', '')
     words_data = transcription_data.get('words', [])
@@ -759,30 +1215,58 @@ def actfl_fact_assessment(transcription_data):
             'feedback': "We couldn't detect your speech. Please ensure your microphone is working and try speaking clearly.",
             'strengths': [],
             'areas_for_improvement': ["Check microphone connection and reduce background noise"],
-            'fact_breakdown': {}
+            'fact_breakdown': {},
+            'patterns': []
         }
 
-    # Evaluate each FACT component
-    pronunciation = evaluate_pronunciation_fluency(transcript, words_data)
-    functions = evaluate_functions(transcript)
-    text_type = evaluate_text_type(transcript)
-    context = evaluate_context(transcript)
-
-    # Calculate weighted final score (aligned with rubric weights)
-    final_score = (
-        pronunciation['score'] * 0.30 +
-        functions['score'] * 0.25 +
-        text_type['score'] * 0.25 +
-        context['score'] * 0.20
+    # --- EVALUATE EACH FACT COMPONENT ---
+    c1_pronunciation = evaluate_pronunciation_fluency(transcript, words_data)
+    c2_functions = evaluate_functions(transcript, level=level)
+    c3_text_type = evaluate_text_type(transcript, words_data=words_data)
+    c4_context = evaluate_context(transcript, level=level)
+    c5_alignment = evaluate_prompt_alignment(
+        transcript,
+        c1_pronunciation['score'],
+        c2_functions['score'],
+        c3_text_type['score'],
+        c4_context['score'],
+        prompt_type=prompt_type
     )
 
-    # Generate coherent feedback based on final score
-    feedback_text = _generate_rubric_feedback(final_score)
-    strengths = _generate_rubric_strengths(final_score, pronunciation, functions, text_type, context)
-    improvements = _generate_rubric_improvements(final_score, pronunciation, functions, text_type, context)
+    # --- CALCULATE WEIGHTED FINAL SCORE ---
+    base_final_score = (
+        c1_pronunciation['score'] * 0.30 +
+        c2_functions['score'] * 0.25 +
+        c3_text_type['score'] * 0.20 +
+        c4_context['score'] * 0.15 +
+        c5_alignment['score'] * 0.10
+    )
 
-    logger.info(f"FACT Assessment - Pronunciation: {pronunciation['score']}, Functions: {functions['score']}, "
-                f"Text Type: {text_type['score']}, Context: {context['score']}, Final: {final_score}")
+    # --- APPLY LEVEL MULTIPLIERS (for dynamic thresholds) ---
+    # Multipliers only apply to penalties for issues, not to boost scores
+    level_multiplier = LEVEL_CONFIGS.get(level, {}).get('level_multiplier', 1.0)
+
+    # Calculate penalty based on distance from 100
+    distance_from_perfect = 100 - base_final_score
+    adjusted_penalty = distance_from_perfect * level_multiplier
+    final_score = max(0, 100 - adjusted_penalty)
+
+    # --- COLLECT ACTIVATED PATTERNS (for diagnostic feedback) ---
+    patterns_activated = c1_pronunciation.get('patterns_activated', [])
+
+    # Generate coherent feedback based on final score
+    feedback_text = _generate_rubric_feedback(final_score, level)
+    strengths = _generate_rubric_strengths_v2(
+        final_score, c1_pronunciation, c2_functions, c3_text_type, c4_context, level
+    )
+    improvements = _generate_rubric_improvements_v2(
+        final_score, c1_pronunciation, c2_functions, c3_text_type, c4_context, level
+    )
+
+    logger.info(f"FACT Assessment (Level: {level}) - "
+                f"C1: {c1_pronunciation['score']}, C2: {c2_functions['score']}, "
+                f"C3: {c3_text_type['score']}, C4: {c4_context['score']}, "
+                f"C5: {c5_alignment['score']}, Final: {final_score}")
 
     return {
         'score': round(final_score, 1),
@@ -790,17 +1274,25 @@ def actfl_fact_assessment(transcription_data):
         'strengths': strengths,
         'areas_for_improvement': improvements,
         'fact_breakdown': {
-            'pronunciation_fluency': pronunciation['score'],
-            'functions': functions['score'],
-            'text_type': text_type['score'],
-            'context': context['score']
+            'pronunciation_behavior': c1_pronunciation['score'],
+            'functional_control': c2_functions['score'],
+            'discourse_organization': c3_text_type['score'],
+            'lexical_richness': c4_context['score'],
+            'prompt_alignment': c5_alignment['score']
         },
-        'phonetic_details': pronunciation.get('details', {}) if words_data else None
+        'patterns': patterns_activated,
+        'details': {
+            'c1_details': c1_pronunciation.get('details', {}),
+            'c2_detected': c2_functions.get('detected', {}),
+            'c3_discourse': c3_text_type.get('details', {}),
+            'c4_thematic': c4_context.get('thematic_level', 'unknown'),
+            'c5_fulfillment': c5_alignment.get('details', {})
+        }
     }
 
 
-def _generate_rubric_feedback(score):
-    """Generate feedback aligned with instructor's rubric language"""
+def _generate_rubric_feedback(score, level='intermediate'):
+    """Generate feedback aligned with instructor's rubric language and level"""
     if score >= 85:
         return "Excellent work - you communicate clearly and confidently with strong control of Spanish structures."
     elif score >= 75:
@@ -811,36 +1303,54 @@ def _generate_rubric_feedback(score):
         return "Keep practicing - focus on forming complete sentences, improving pronunciation clarity, and building vocabulary."
 
 
-def _generate_rubric_strengths(score, pronunciation, functions, text_type, context):
-    """Generate specific strengths based on actual performance"""
+def _generate_rubric_strengths_v2(score, c1_pronunciation, c2_functions, c3_text_type, c4_context, level):
+    """Generate specific strengths based on actual performance (NEW version for FACT system)"""
     strengths = []
 
-    # Pronunciation & Fluency strengths
-    if pronunciation['score'] >= 85:
-        strengths.append("Your pronunciation is clear and easily understood")
-        if pronunciation['details'].get('fluency', 0) >= 85:
+    # C1: Pronunciation strengths
+    if c1_pronunciation['score'] >= 85:
+        details = c1_pronunciation.get('details', {})
+        if details.get('rhythm_stability', 0) >= 85:
+            strengths.append("Your pronunciation is clear with stable rhythm")
+        if details.get('flow_continuity', 0) >= 85:
             strengths.append("You speak naturally with minimal hesitation")
-    elif pronunciation['score'] >= 70:
+    elif c1_pronunciation['score'] >= 70:
         strengths.append("Your pronunciation is generally clear and comprehensible")
 
-    # Functions (Grammar) strengths
-    if functions['score'] >= 85:
-        if functions['detected'].get('subjunctive') or functions['detected'].get('conditional'):
-            strengths.append("You demonstrate control of advanced grammatical structures")
-        elif functions['detected'].get('future') and (functions['detected'].get('preterite') or functions['detected'].get('imperfect')):
-            strengths.append("You can express yourself across different time frames")
-    elif functions['score'] >= 70:
-        strengths.append("You use core grammatical structures appropriately")
+    # C2: Functions strengths (with modality awareness)
+    modality = c2_functions.get('modality_detected', {})
+    detected = c2_functions.get('detected', {})
 
-    # Text Type strengths
-    if text_type['score'] >= 80:
-        strengths.append("You convey ideas in complete, connected sentences")
-    elif text_type['score'] >= 65:
+    if c2_functions['score'] >= 85:
+        if modality.get('evaluative', 0) > 0:
+            strengths.append("You express opinions and evaluations effectively")
+        elif detected.get('subjunctive', 0) >= 2:
+            strengths.append("You demonstrate control of advanced grammatical structures")
+        elif modality.get('cognitive', 0) > 0:
+            strengths.append("You express your thoughts and opinions clearly")
+    elif c2_functions['score'] >= 70:
+        strengths.append("You use appropriate grammatical structures for communication")
+
+    # C3: Text Type strengths
+    discourse_details = c3_text_type.get('details', {})
+    discourse_type = discourse_details.get('discourse_type', 'conversational')
+
+    if c3_text_type['score'] >= 80:
+        if discourse_type in ['academic', 'argumentative']:
+            strengths.append("You organize ideas in academic/argumentative discourse")
+        else:
+            strengths.append("You convey ideas in complete, connected sentences")
+    elif c3_text_type['score'] >= 65:
         strengths.append("You speak in complete sentences")
 
-    # Context (Vocabulary) strengths
-    if context['score'] >= 75:
-        strengths.append("You demonstrate good variety in your vocabulary")
+    # C4: Context (Vocabulary) strengths
+    thematic_level = c4_context.get('thematic_level', 'basic')
+
+    if c4_context['score'] >= 85:
+        if thematic_level == 'abstract':
+            strengths.append("You demonstrate sophisticated vocabulary use")
+        else:
+            strengths.append("You demonstrate good variety in your vocabulary")
 
     # If no specific strengths identified, add a general one
     if not strengths:
@@ -849,42 +1359,65 @@ def _generate_rubric_strengths(score, pronunciation, functions, text_type, conte
     return strengths
 
 
-def _generate_rubric_improvements(score, pronunciation, functions, text_type, context):
-    """Generate specific, actionable improvements"""
+def _generate_rubric_improvements_v2(score, c1_pronunciation, c2_functions, c3_text_type, c4_context, level):
+    """Generate specific, actionable improvements (NEW version for FACT system)"""
     improvements = []
 
-    # Pronunciation & Fluency improvements
-    if pronunciation['score'] < 75:
-        if pronunciation['details'].get('long_pauses', 0) > 3:
-            improvements.append("Practice speaking more smoothly to reduce long pauses and hesitations")
-        else:
-            improvements.append("Focus on clear articulation of individual sounds and words")
+    # C1: Pronunciation improvements
+    details = c1_pronunciation.get('details', {})
 
-    # Functions (Grammar) improvements
-    if functions['score'] < 75:
-        if not functions['detected'].get('preterite') and not functions['detected'].get('imperfect'):
-            improvements.append("Practice using past tense to talk about completed actions and descriptions")
-        if not functions['detected'].get('future'):
-            improvements.append("Work on expressing future plans using 'voy a' or future tense")
-    elif functions['score'] < 85:
-        if not functions['detected'].get('subjunctive') and not functions['detected'].get('conditional'):
-            improvements.append("Challenge yourself with more advanced structures like subjunctive or conditional")
+    if c1_pronunciation['score'] < 75:
+        if details.get('internal_pauses', 0) > 2:
+            improvements.append("Practice speaking more smoothly - pause between ideas, not within them")
+        if details.get('wps_std_dev', 0) > 0.6:
+            improvements.append("Work on maintaining a more consistent speaking rhythm")
+        elif details.get('wps_collapses', 0) > 2:
+            improvements.append("Keep vowels short and stable within words")
 
-    # Text Type improvements
-    if text_type['score'] < 70:
-        if text_type['details'].get('connector_count', 0) < 2:
-            improvements.append("Practice connecting your ideas with words like 'porque', 'pero', 'y', 'entonces'")
-        if text_type['details'].get('sentence_count', 0) < 3:
+    # C2: Functions improvements (with modality awareness)
+    modality = c2_functions.get('modality_detected', {})
+    detected = c2_functions.get('detected', {})
+
+    if level == 'beginner':
+        if c2_functions['score'] < 75 and detected.get('present', 0) < 3:
+            improvements.append("Practice using present tense to describe yourself and your routine")
+        if modality.get('basic', 0) == 0:
+            improvements.append("Try expressing preferences with 'me gusta' or 'quiero'")
+
+    elif level == 'intermediate':
+        if c2_functions['score'] < 75:
+            if detected.get('preterite', 0) + detected.get('imperfect', 0) < 3:
+                improvements.append("Practice using past tense to narrate completed actions and descriptions")
+        if modality.get('cognitive', 0) == 0:
+            improvements.append("Try expressing opinions with 'creo que' or 'pienso que'")
+
+    elif level == 'advanced':
+        if c2_functions['score'] < 85:
+            if modality.get('evaluative', 0) == 0:
+                improvements.append("Use evaluative expressions like 'es importante que' or 'me preocupa que'")
+            if detected.get('subjunctive', 0) == 0:
+                improvements.append("Challenge yourself with subjunctive mood to express doubt, emotion, or necessity")
+
+    # C3: Text Type improvements
+    discourse_details = c3_text_type.get('details', {})
+
+    if c3_text_type['score'] < 70:
+        if discourse_details.get('total_connectors', 0) < 2:
+            improvements.append("Connect your ideas with words like 'porque', 'pero', 'entonces', 'sin embargo'")
+        if discourse_details.get('functional_sentences', 0) < 3:
             improvements.append("Try speaking in multiple complete sentences instead of isolated phrases")
 
-    # Context (Vocabulary) improvements
-    if context['score'] < 70:
-        if context['details'].get('variety_ratio', 0) < 0.5:
+    # C4: Context improvements
+    context_details = c4_context.get('details', {})
+    thematic_level = c4_context.get('thematic_level', 'basic')
+
+    if c4_context['score'] < 70:
+        if context_details.get('variety_ratio', 0) < 0.60:
             improvements.append("Expand your vocabulary to avoid repeating the same words")
 
     # General improvement if specific ones don't apply
     if not improvements:
-        improvements.append("Continue refining subtle aspects of pronunciation and grammar")
+        improvements.append("Continue refining subtle aspects of pronunciation and discourse organization")
 
     return improvements
 
@@ -893,23 +1426,25 @@ def _generate_rubric_improvements(score, pronunciation, functions, text_type, co
 # WRAPPER FUNCTIONS - Simplified to use FACT assessment
 # =============================================================================
 
-def assess_free_speech(transcription_data):
+def assess_free_speech(transcription_data, level='intermediate'):
     """Evaluate free speech using FACT assessment
 
     Args:
         transcription_data: dict with 'transcript' and 'words'
+        level: Expected proficiency level (beginner/intermediate/advanced)
 
     Returns:
         FACT assessment result
     """
-    return actfl_fact_assessment(transcription_data)
+    return actfl_fact_assessment(transcription_data, level=level, prompt_type='free_speech')
 
-def assess_practice_phrase(transcription_data, reference_level):
+def assess_practice_phrase(transcription_data, reference_level, level='intermediate'):
     """Evaluate practice phrase using FACT assessment + similarity bonus
 
     Args:
         transcription_data: dict with 'transcript' and 'words'
         reference_level: Level key for reference phrase (short/medium/extended)
+        level: Expected proficiency level (beginner/intermediate/advanced)
 
     Returns:
         FACT assessment result with similarity bonus and reference-specific feedback
@@ -917,12 +1452,20 @@ def assess_practice_phrase(transcription_data, reference_level):
     transcript = transcription_data.get('transcript', '')
 
     if reference_level not in REFERENCES:
-        return actfl_fact_assessment(transcription_data)
+        return actfl_fact_assessment(transcription_data, level=level, prompt_type='free_speech')
 
     reference_text = REFERENCES[reference_level]
 
-    # Get base FACT assessment
-    base_assessment = actfl_fact_assessment(transcription_data)
+    # Map reference level to prompt type for better alignment checking
+    prompt_type_map = {
+        'short': 'introduce_yourself',
+        'medium': 'describe_your_day',
+        'extended': 'opinion_technology_education'
+    }
+    prompt_type = prompt_type_map.get(reference_level, 'free_speech')
+
+    # Get base FACT assessment with appropriate prompt type
+    base_assessment = actfl_fact_assessment(transcription_data, level=level, prompt_type=prompt_type)
 
     # Calculate similarity to reference phrase
     similarity_score = fuzz.token_sort_ratio(transcript.lower(), reference_text.lower())
