@@ -400,6 +400,29 @@ def transcribe_audio(audio_content):
 # FACT ASSESSMENT SYSTEM - Based on Instructor's Rubric
 # =============================================================================
 
+# INTERNAL ACTFL BAND MAPPING (invisible to users)
+# Used for: adjusting expectations, weighting penalties, modulating feedback tone
+ACTFL_BANDS = {
+    'novice_low': {'min': 0, 'max': 49, 'name': 'Novice Low'},
+    'novice_mid': {'min': 50, 'max': 54, 'name': 'Novice Mid'},
+    'novice_high': {'min': 55, 'max': 59, 'name': 'Novice High'},
+    'intermediate_low': {'min': 60, 'max': 64, 'name': 'Intermediate Low'},
+    'intermediate_mid': {'min': 65, 'max': 69, 'name': 'Intermediate Mid'},
+    'intermediate_high': {'min': 70, 'max': 74, 'name': 'Intermediate High'},
+    'advanced_low': {'min': 75, 'max': 79, 'name': 'Advanced Low'},
+    'advanced_mid': {'min': 80, 'max': 84, 'name': 'Advanced Mid'},
+    'advanced_high': {'min': 85, 'max': 89, 'name': 'Advanced High'},
+    'superior': {'min': 90, 'max': 94, 'name': 'Superior'},
+    'distinguished': {'min': 95, 'max': 100, 'name': 'Distinguished'}
+}
+
+def get_actfl_band(score):
+    """Map score to internal ACTFL band (never shown to user)"""
+    for band_key, band_info in ACTFL_BANDS.items():
+        if band_info['min'] <= score <= band_info['max']:
+            return band_key
+    return 'novice_low'  # fallback
+
 # LEVEL CONFIGURATION - Expected signals by level (NOT requirements, just signals)
 LEVEL_CONFIGS = {
     'beginner': {
@@ -481,25 +504,240 @@ CONNECTOR_TYPES = {
     'conclusive': ['finalmente', 'en resumen', 'en conclusión']
 }
 
-# PATTERN PRIORITIES - For diagnostic feedback (never affect score)
-PATTERN_PRIORITIES = {
-    'fundamentals': {
-        'priority': 1,
-        'patterns': ['pure_vowels', 'even_syllable_rhythm']
+# =============================================================================
+# CAPA 3 — DIAGNOSTIC LAYER (Pattern Activation & Prioritization)
+# =============================================================================
+# Key principle: Patterns NEVER affect score. They only interpret why clarity was limited.
+
+# Complete pattern catalog (10 patterns total)
+DIAGNOSTIC_PATTERNS = {
+    # GROUP 1 — FUNDAMENTALS (Highest impact on intelligibility)
+    1: {
+        'id': 1,
+        'name': 'Pure Vowels',
+        'group': 'fundamentals',
+        'group_priority': 1,
+        'activated_by': ['vowel_dragging', 'wps_collapse', 'micro_pauses_in_syllables'],
+        'diagnostic_message': 'Vowel length is reducing rhythmic stability',
+        'coaching_target': 'pure_vowels'
     },
-    'prosody': {
-        'priority': 2,
-        'patterns': ['natural_pausing', 'intonation']
+    2: {
+        'id': 2,
+        'name': 'Even Syllable Rhythm',
+        'group': 'fundamentals',
+        'group_priority': 1,
+        'activated_by': ['unstable_rhythm', 'high_wps_std_dev'],
+        'diagnostic_message': 'Rhythm varies too much between syllables',
+        'coaching_target': 'even_syllable_rhythm'
     },
-    'consonants': {
-        'priority': 3,
-        'patterns': ['soft_bdg', 'calm_ptk', 'mexican_j', 'consonant_clusters']
+
+    # GROUP 2 — PROSODY (Discourse-level clarity)
+    9: {
+        'id': 9,
+        'name': 'Intonation',
+        'group': 'prosody',
+        'group_priority': 2,
+        'activated_by': ['flat_melodic_contour', 'no_boundary_marking'],
+        'diagnostic_message': 'Ideas are not clearly marked through intonation',
+        'coaching_target': 'intonation'
     },
-    'rhotics': {
-        'priority': 4,
-        'patterns': ['tap_r', 'trill_r']
+    10: {
+        'id': 10,
+        'name': 'Natural Pausing',
+        'group': 'prosody',
+        'group_priority': 2,
+        'activated_by': ['internal_long_pauses', 'fragmented_flow', 'excessive_internal_pauses'],
+        'diagnostic_message': 'Pauses interrupt ideas instead of separating them',
+        'coaching_target': 'natural_pausing'
+    },
+
+    # GROUP 3 — CONSONANT FLOW (Word-to-word continuity)
+    3: {
+        'id': 3,
+        'name': 'Soft /b d g/',
+        'group': 'consonants',
+        'group_priority': 3,
+        'activated_by': ['pauses_near_voiced_stops', 'flow_interruptions_between_words'],
+        'diagnostic_message': 'Consonant transitions are too tense',
+        'coaching_target': 'soft_bdg'
+    },
+    4: {
+        'id': 4,
+        'name': 'Calm /p t k/',
+        'group': 'consonants',
+        'group_priority': 3,
+        'activated_by': ['pause_spikes_after_stops', 'flow_instability_after_voiceless'],
+        'diagnostic_message': 'Consonant force is interrupting flow',
+        'coaching_target': 'calm_ptk'
+    },
+    5: {
+        'id': 5,
+        'name': 'Mexican J /x/',
+        'group': 'consonants',
+        'group_priority': 3,
+        'activated_by': ['pauses_before_friction', 'rate_drops_before_j'],
+        'diagnostic_message': 'Friction sounds are blocking smooth airflow',
+        'coaching_target': 'mexican_j'
+    },
+    6: {
+        'id': 6,
+        'name': 'Consonant Clusters',
+        'group': 'consonants',
+        'group_priority': 3,
+        'activated_by': ['micro_pauses_in_clusters', 'fragmented_word_production'],
+        'diagnostic_message': 'Complex words are being divided unnecessarily',
+        'coaching_target': 'consonant_clusters'
+    },
+
+    # GROUP 4 — RHOTICS (Lower impact on comprehension)
+    7: {
+        'id': 7,
+        'name': 'Tap /ɾ/',
+        'group': 'rhotics',
+        'group_priority': 4,
+        'activated_by': ['pauses_in_function_words', 'rhythm_breaks_in_syllables'],
+        'diagnostic_message': 'Short syllables lose connection',
+        'coaching_target': 'tap_r'
+    },
+    8: {
+        'id': 8,
+        'name': 'Trill /r/',
+        'group': 'rhotics',
+        'group_priority': 4,
+        'activated_by': ['preparation_pauses_before_trill', 'pre_articulatory_hesitation'],
+        'diagnostic_message': 'Preparation interrupts natural rhythm',
+        'coaching_target': 'trill_r'
     }
 }
+
+# Level band priority bias (what patterns to prioritize by level)
+LEVEL_BAND_PRIORITIES = {
+    'novice_low': ['fundamentals'],
+    'novice_mid': ['fundamentals'],
+    'novice_high': ['fundamentals'],
+    'intermediate_low': ['fundamentals', 'prosody'],
+    'intermediate_mid': ['fundamentals', 'prosody'],
+    'intermediate_high': ['fundamentals', 'prosody'],
+    'advanced_low': ['prosody', 'fundamentals'],
+    'advanced_mid': ['prosody', 'consonants'],
+    'advanced_high': ['prosody', 'consonants'],
+    'superior': ['prosody', 'consonants'],
+    'distinguished': ['prosody']  # refinement only
+}
+
+# Score-based pattern ceiling (max patterns to show)
+SCORE_PATTERN_CEILING = {
+    'under_60': {'max_patterns': 3, 'preferred_ids': [2, 1, 10]},
+    '60_to_75': {'max_patterns': 3, 'preferred_groups': ['fundamentals', 'prosody']},
+    '76_to_85': {'max_patterns': 2, 'preferred_groups': ['prosody', 'consonants']},
+    'above_85': {'max_patterns': 1, 'preferred_groups': ['prosody']}  # optional refinement
+}
+
+def diagnose_patterns(signals, final_score, level='intermediate'):
+    """CAPA 3 — Diagnostic Layer
+
+    Translates evaluation signals from CAPA 2 into pedagogically meaningful patterns.
+
+    CRITICAL RULES:
+    - Patterns NEVER affect score (scoring is finalized before this runs)
+    - Maximum 3 patterns
+    - Priority hierarchy: Fundamentals > Prosody > Consonants > Rhotics
+    - Level-sensitive prioritization
+
+    Args:
+        signals: List of signal tuples [(signal_name, severity), ...]
+        final_score: Final score (0-100) from CAPA 2
+        level: User-selected level (beginner/intermediate/advanced)
+
+    Returns:
+        List of activated patterns (max 3), sorted by priority
+        [
+            {
+                'pattern_id': int,
+                'priority': int,
+                'name': str,
+                'diagnostic_message': str,
+                'coaching_target': str
+            }
+        ]
+    """
+    # STEP 1: Extract signal names
+    signal_names = [sig[0] if isinstance(sig, tuple) else sig for sig in signals]
+
+    # STEP 2: Identify which patterns are activated
+    activated_patterns = []
+
+    for pattern_id, pattern_def in DIAGNOSTIC_PATTERNS.items():
+        # Check if any of this pattern's activation signals are present
+        for activation_signal in pattern_def['activated_by']:
+            if activation_signal in signal_names:
+                activated_patterns.append({
+                    'pattern_id': pattern_id,
+                    'name': pattern_def['name'],
+                    'group': pattern_def['group'],
+                    'group_priority': pattern_def['group_priority'],
+                    'diagnostic_message': pattern_def['diagnostic_message'],
+                    'coaching_target': pattern_def['coaching_target']
+                })
+                break  # Only add once per pattern
+
+    if not activated_patterns:
+        return []  # No patterns to show
+
+    # STEP 3: Get level band and preferred groups
+    actfl_band = get_actfl_band(final_score)
+    preferred_groups = LEVEL_BAND_PRIORITIES.get(actfl_band, ['fundamentals'])
+
+    # STEP 4: Apply score-based ceiling
+    if final_score < 60:
+        ceiling = SCORE_PATTERN_CEILING['under_60']
+        max_patterns = ceiling['max_patterns']
+        # For scores < 60, use fixed pattern IDs if available
+        if 'preferred_ids' in ceiling:
+            preferred_pattern_ids = ceiling['preferred_ids']
+            # Filter to only activated patterns with preferred IDs
+            priority_patterns = [p for p in activated_patterns if p['pattern_id'] in preferred_pattern_ids]
+            if priority_patterns:
+                return priority_patterns[:max_patterns]
+    elif final_score < 76:
+        ceiling = SCORE_PATTERN_CEILING['60_to_75']
+        max_patterns = ceiling['max_patterns']
+    elif final_score < 86:
+        ceiling = SCORE_PATTERN_CEILING['76_to_85']
+        max_patterns = ceiling['max_patterns']
+    else:
+        ceiling = SCORE_PATTERN_CEILING['above_85']
+        max_patterns = ceiling['max_patterns']
+
+    # STEP 5: Prioritize by group order
+    # Sort by: group_priority (lower is higher), then pattern_id
+    activated_patterns.sort(key=lambda x: (x['group_priority'], x['pattern_id']))
+
+    # STEP 6: Filter by preferred groups for this level band
+    filtered_patterns = []
+    for group_name in preferred_groups:
+        group_patterns = [p for p in activated_patterns if p['group'] == group_name]
+        filtered_patterns.extend(group_patterns)
+        if len(filtered_patterns) >= max_patterns:
+            break
+
+    # If we don't have enough from preferred groups, fill with others
+    if len(filtered_patterns) < max_patterns:
+        remaining = [p for p in activated_patterns if p not in filtered_patterns]
+        filtered_patterns.extend(remaining[:max_patterns - len(filtered_patterns)])
+
+    # STEP 7: Return top N patterns with priority assigned
+    final_patterns = []
+    for idx, pattern in enumerate(filtered_patterns[:max_patterns]):
+        final_patterns.append({
+            'pattern_id': pattern['pattern_id'],
+            'priority': idx + 1,  # 1 = highest
+            'name': pattern['name'],
+            'diagnostic_message': pattern['diagnostic_message'],
+            'coaching_target': pattern['coaching_target']
+        })
+
+    return final_patterns
 
 def evaluate_pronunciation_fluency(transcript, words_data):
     """C1: Pronunciation Behavior (30% weight)
@@ -1251,28 +1489,29 @@ def actfl_fact_assessment(transcription_data, level='intermediate', prompt_type=
     adjusted_penalty = distance_from_perfect * level_multiplier
     final_score = max(0, 100 - adjusted_penalty)
 
-    # --- COLLECT ACTIVATED PATTERNS (for diagnostic feedback) ---
-    patterns_activated = c1_pronunciation.get('patterns_activated', [])
+    # --- CAPA 3: DIAGNOSTIC LAYER (patterns NEVER affect score) ---
+    # Collect all signals from CAPA 2
+    raw_signals = c1_pronunciation.get('patterns_activated', [])
 
-    # Generate coherent feedback based on final score
-    feedback_text = _generate_rubric_feedback(final_score, level)
-    strengths = _generate_rubric_strengths_v2(
-        final_score, c1_pronunciation, c2_functions, c3_text_type, c4_context, level
-    )
-    improvements = _generate_rubric_improvements_v2(
-        final_score, c1_pronunciation, c2_functions, c3_text_type, c4_context, level
-    )
+    # Call diagnostic engine
+    diagnostic_patterns = diagnose_patterns(raw_signals, final_score, level)
+
+    # --- Generate simple feedback (CAPA 4 placeholder) ---
+    # Per spec: Only score + max 3 diagnostic labels, NO explanations yet
+    feedback_text = _generate_simple_feedback(final_score)
+    diagnostic_labels = _generate_diagnostic_labels(diagnostic_patterns)
 
     logger.info(f"FACT Assessment (Level: {level}) - "
                 f"C1: {c1_pronunciation['score']}, C2: {c2_functions['score']}, "
                 f"C3: {c3_text_type['score']}, C4: {c4_context['score']}, "
-                f"C5: {c5_alignment['score']}, Final: {final_score}")
+                f"C5: {c5_alignment['score']}, Final: {final_score}, "
+                f"Patterns: {len(diagnostic_patterns)}")
 
     return {
         'score': round(final_score, 1),
         'feedback': feedback_text,
-        'strengths': strengths,
-        'areas_for_improvement': improvements,
+        'strengths': [],  # Empty for now (CAPA 4 placeholder)
+        'areas_for_improvement': diagnostic_labels,  # Max 3 diagnostic labels
         'fact_breakdown': {
             'pronunciation_behavior': c1_pronunciation['score'],
             'functional_control': c2_functions['score'],
@@ -1280,7 +1519,7 @@ def actfl_fact_assessment(transcription_data, level='intermediate', prompt_type=
             'lexical_richness': c4_context['score'],
             'prompt_alignment': c5_alignment['score']
         },
-        'patterns': patterns_activated,
+        'diagnostic_patterns': diagnostic_patterns,  # CAPA 3 output
         'details': {
             'c1_details': c1_pronunciation.get('details', {}),
             'c2_detected': c2_functions.get('detected', {}),
@@ -1289,6 +1528,49 @@ def actfl_fact_assessment(transcription_data, level='intermediate', prompt_type=
             'c5_fulfillment': c5_alignment.get('details', {})
         }
     }
+
+
+def _generate_simple_feedback(score):
+    """CAPA 4 Placeholder - Simple score-based feedback (no ACTFL bands shown to user)
+
+    Per spec: Short feedback based on score, NO level labels visible
+    """
+    if score >= 85:
+        return "Excellent work - you communicate clearly and confidently with strong control of Spanish structures."
+    elif score >= 75:
+        return "Good work - you communicate effectively with clear pronunciation and good structural control."
+    elif score >= 60:
+        return "You're making progress - continue practicing to improve fluency, clarity, and grammatical consistency."
+    else:
+        return "Keep practicing - focus on forming complete sentences, improving pronunciation clarity, and building vocabulary."
+
+
+def _generate_diagnostic_labels(diagnostic_patterns):
+    """CAPA 4 Placeholder - Generate simple diagnostic labels (max 3)
+
+    Per spec: Only diagnostic labels WITHOUT explanations, coaching, or links
+
+    Args:
+        diagnostic_patterns: List from CAPA 3 diagnose_patterns()
+
+    Returns:
+        List of strings (diagnostic labels only)
+
+    Example output:
+        [
+            "Rhythm consistency",
+            "Natural pausing"
+        ]
+    """
+    if not diagnostic_patterns:
+        return ["Continue refining your pronunciation"]
+
+    labels = []
+    for pattern in diagnostic_patterns[:3]:  # Max 3
+        # Use pattern name only (no diagnostic message, no explanation)
+        labels.append(pattern['name'])
+
+    return labels
 
 
 def _generate_rubric_feedback(score, level='intermediate'):

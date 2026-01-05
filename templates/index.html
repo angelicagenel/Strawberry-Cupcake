@@ -281,10 +281,13 @@
                     <div class="card-body position-relative">
                         <button type="button" class="btn-close position-absolute top-0 end-0 m-2" aria-label="Close" id="closePromptDisplay"></button>
                         <p><strong id="promptTopicTitle">Topic: Introduce Yourself</strong></p>
-                        <p id="promptInstructions">Speak freely in Spanish and introduce yourself.</p>
-                        <p id="promptGuidance">Say what comes naturally to you.</p>
-                        <p id="promptNote" style="margin-top: 10px;"></p>
-                        <p id="promptDuration"><strong>Speak clearly and continuously for 15–60 seconds.</strong></p>
+                        <p id="promptInstructions">Speak freely in Spanish.</p>
+                        <p style="margin-top: 10px; margin-bottom: 5px;"><strong>Guidance (what to include):</strong></p>
+                        <ul id="promptGuidanceBullets" style="margin-bottom: 10px;">
+                            <!-- Bullets added dynamically -->
+                        </ul>
+                        <p id="promptReminder" style="font-style: italic; color: #666;"></p>
+                        <p id="promptDuration"><strong>Time: 15–60 seconds</strong></p>
                     </div>
                 </div>
                 
@@ -393,30 +396,43 @@
             const recordedAudio = document.getElementById('recordedAudio');
             
             // PromptRenderer - Single component parameterized by level
+            // Per CAPA 1 spec: prompts provide guidance bullets, NOT fixed scripts
             const promptData = {
                 beginner: {
                     level: "Beginner",
                     topic: "Topic: Introduce Yourself",
-                    instructions: "Speak freely in Spanish and introduce yourself.",
-                    guidance: "Say what comes naturally to you.",
-                    note: "There are no required points to include.",
-                    duration: "Speak clearly and continuously for 15–60 seconds."
+                    instructions: "Speak freely in Spanish.",
+                    guidanceBullets: [
+                        "Your name and where you are from",
+                        "Your age or occupation",
+                        "Languages you speak",
+                        "One or two interests or hobbies"
+                    ],
+                    reminder: "Speak freely. Do not read."
                 },
                 intermediate: {
                     level: "Intermediate",
                     topic: "Topic: Describe Your Day",
-                    instructions: "Speak freely in Spanish about your day or a recent day.",
-                    guidance: "Tell what happened in a natural way.",
-                    note: "There is no required order or structure.",
-                    duration: "Speak clearly and continuously for 15–60 seconds."
+                    instructions: "Speak freely in Spanish.",
+                    guidanceBullets: [
+                        "Your morning routine",
+                        "Activities you did",
+                        "People you interacted with",
+                        "How you felt at some point"
+                    ],
+                    reminder: "Speak freely. Do not read."
                 },
                 advanced: {
                     level: "Advanced",
                     topic: "Topic: Opinion on Technology and Education",
-                    instructions: "Speak freely in Spanish about how technology affects education.",
-                    guidance: "Express opinions, concerns, or reactions naturally.",
-                    note: "Try to use expressions of opinion, emotion, or necessity (the kind of expressions that often trigger the subjunctive).",
-                    duration: "Speak clearly and continuously for 15–60 seconds."
+                    instructions: "Speak freely in Spanish.",
+                    guidanceBullets: [
+                        "Something positive about technology in education",
+                        "Something that concerns you or feels problematic",
+                        "A personal experience",
+                        "Something you think should change or improve"
+                    ],
+                    reminder: "Speak freely. Do not read."
                 }
             };
 
@@ -424,8 +440,8 @@
             const promptDisplay = document.getElementById('promptDisplay');
             const promptTopicTitle = document.getElementById('promptTopicTitle');
             const promptInstructions = document.getElementById('promptInstructions');
-            const promptGuidance = document.getElementById('promptGuidance');
-            const promptNote = document.getElementById('promptNote');
+            const promptGuidanceBullets = document.getElementById('promptGuidanceBullets');
+            const promptReminder = document.getElementById('promptReminder');
             const promptDuration = document.getElementById('promptDuration');
             const closePromptDisplay = document.getElementById('closePromptDisplay');
             const promptLinks = document.querySelectorAll('.prompt-link');
@@ -447,12 +463,20 @@
                         // Add active class to clicked link
                         this.classList.add('active');
 
-                        // Set content
+                        // Set content per CAPA 1 spec
                         promptTopicTitle.textContent = data.topic;
                         promptInstructions.textContent = data.instructions;
-                        promptGuidance.textContent = data.guidance;
-                        promptNote.textContent = data.note;
-                        promptDuration.innerHTML = '<strong>' + data.duration + '</strong>';
+
+                        // Build guidance bullets
+                        promptGuidanceBullets.innerHTML = '';
+                        data.guidanceBullets.forEach(bullet => {
+                            const li = document.createElement('li');
+                            li.textContent = bullet;
+                            promptGuidanceBullets.appendChild(li);
+                        });
+
+                        promptReminder.textContent = data.reminder;
+                        promptDuration.innerHTML = '<strong>Time: 15–60 seconds</strong>';
 
                         // Show the display
                         promptDisplay.style.display = 'block';
