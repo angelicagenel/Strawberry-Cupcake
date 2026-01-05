@@ -399,40 +399,43 @@
             // Per CAPA 1 spec: prompts provide guidance bullets, NOT fixed scripts
             const promptData = {
                 beginner: {
-                    level: "Beginner",
-                    topic: "Topic: Introduce Yourself",
-                    instructions: "Speak freely in Spanish.",
+                    level: "Beginner (Básico)",
+                    topic: "Topic: Preséntate / Introduce Yourself",
+                    instructions: "Speak about yourself in Spanish. Use simple, complete sentences in the present tense.",
                     guidanceBullets: [
                         "Your name and where you are from",
-                        "Your age or occupation",
-                        "Languages you speak",
-                        "One or two interests or hobbies"
+                        "Your age and what you do (student, job, etc.)",
+                        "What languages you speak",
+                        "One or two hobbies or interests"
                     ],
-                    reminder: "Speak freely. Do not read."
+                    reminder: "Speak calmly and clearly. Do not read from a written text—you may use brief notes.",
+                    duration: "Time: 15-60 seconds"
                 },
                 intermediate: {
-                    level: "Intermediate",
-                    topic: "Topic: Describe Your Day",
-                    instructions: "Speak freely in Spanish.",
+                    level: "Intermediate (Intermedio)",
+                    topic: "Topic: Describe tu día (ayer) / Describe Your Day (Yesterday)",
+                    instructions: "Describe what you did yesterday in Spanish. Speak in the past tense and organize your ideas in order.",
                     guidanceBullets: [
-                        "Your morning routine",
-                        "Activities you did",
-                        "People you interacted with",
-                        "How you felt at some point"
+                        "What time you woke up and what you did in the morning",
+                        "Two or three activities you did during the day",
+                        "If you talked with or met other people",
+                        "How you felt at some point in the day"
                     ],
-                    reminder: "Speak freely. Do not read."
+                    reminder: "Use simple connectors to organize your story (primero, después, por la tarde). Speak continuously—do not respond as a list.",
+                    duration: "Time: 20-60 seconds"
                 },
                 advanced: {
-                    level: "Advanced",
-                    topic: "Topic: Opinion on Technology and Education",
-                    instructions: "Speak freely in Spanish.",
+                    level: "Advanced (Avanzado)",
+                    topic: "Topic: Tecnología y educación / Technology and Education",
+                    instructions: "Express your opinion about how technology influences education today. Speak in an organized, reflective, and personal way.",
                     guidanceBullets: [
-                        "Something positive about technology in education",
-                        "Something that concerns you or feels problematic",
-                        "A personal experience",
-                        "Something you think should change or improve"
+                        "Something you find positive or important about technology in education",
+                        "Something that worries you, bothers you, or makes you uncertain",
+                        "A personal experience with digital platforms or tools",
+                        "An idea about what should change or improve in the future of education"
                     ],
-                    reminder: "Speak freely. Do not read."
+                    reminder: "Try to express emotions, evaluations, or personal opinions using expressions like: me parece importante que..., me preocupa que..., es necesario que..., no creo que..., aunque..., para que... Use connectors to organize your speech (por un lado..., por otro..., sin embargo, aunque...). Speak fluently—do not memorize a text.",
+                    duration: "Time: 30-60 seconds"
                 }
             };
 
@@ -476,7 +479,7 @@
                         });
 
                         promptReminder.textContent = data.reminder;
-                        promptDuration.innerHTML = '<strong>Time: 15–60 seconds</strong>';
+                        promptDuration.innerHTML = '<strong>' + data.duration + '</strong>';
 
                         // Show the display
                         promptDisplay.style.display = 'block';

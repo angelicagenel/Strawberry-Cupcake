@@ -739,45 +739,137 @@ def diagnose_patterns(signals, final_score, level='intermediate'):
 
     return final_patterns
 
-def evaluate_pronunciation_fluency(transcript, words_data):
-    """C1: Pronunciation Behavior (30% weight)
+def evaluate_speech_clarity(transcript, words_data):
+    """C1: Speech Clarity (25% weight)
 
-    Evaluates functional clarity through 4 subcriteria:
-    1. Rhythm Stability - WPS standard deviation
-    2. Flow Continuity - Internal vs strategic pauses
-    3. Vowel Duration - WPS drops without pauses (vowel dragging)
-    4. Global Stability - STT confidence (acts as ceiling/floor, NOT direct penalty)
+    FACT Spec Section 2: Measures whether a listener can understand the spoken
+    message without significant effort.
 
-    Args:
-        transcript: Full transcribed text
-        words_data: List of word objects with timing and confidence
+    Subcomponents (per spec):
+    - C1.1 Overall Intelligibility (30%): STT confidence as ceiling, not penalty
+    - C1.2 Thought Grouping (25%): Thinking pauses vs disruptive pauses
+    - C1.3 Flow Continuity (25%): Sustained forward movement without interruptions
+    - C1.4 Stability Over Time (20%): Consistent speaking rate (WPS std dev)
+
+    Formula: C1 = (C1.1 × 0.30) + (C1.2 × 0.25) + (C1.3 × 0.25) + (C1.4 × 0.20)
 
     Returns:
-        dict with 'score' (0-100), 'details', and 'patterns_activated'
+        dict with 'score' (0-100), 'subcriteria', 'details'
     """
     if not words_data or len(words_data) == 0:
         return {
             'score': 70,
-            'details': {
-                'rhythm_stability': 70,
-                'flow_continuity': 70,
-                'vowel_duration': 70,
-                'global_stability': 70,
-                'note': 'No timing data available'
+            'subcriteria': {
+                'c1_1_intelligibility': 70,
+                'c1_2_thought_grouping': 70,
+                'c1_3_flow_continuity': 70,
+                'c1_4_stability': 70
             },
-            'patterns_activated': []
+            'details': {'note': 'No timing data available'}
         }
 
-    patterns_activated = []
-
-    # --- SUBCRITERION 1.1: RHYTHM STABILITY ---
-    # Measure WPS standard deviation to detect erratic rhythm
+    # ===== C1.1: OVERALL INTELLIGIBILITY (30%) =====
+    # Uses STT confidence as ceiling, NOT penalty
     try:
-        # Calculate WPS in 3-second windows
+        confidences = [w.get('confidence', 0.75) for w in words_data if 'confidence' in w]
+        if confidences:
+            avg_confidence = sum(confidences) / len(confidences)
+        else:
+            avg_confidence = 0.75
+
+        # Apply ceiling based on STT confidence (spec section 2.3)
+        if avg_confidence >= 0.85:
+            c1_1_intelligibility = 95  # No cap applied
+        elif avg_confidence >= 0.75:
+            c1_1_intelligibility = 85  # Maximum 90
+        elif avg_confidence >= 0.65:
+            c1_1_intelligibility = 75  # Maximum 80
+        else:
+            c1_1_intelligibility = 65  # Maximum 70
+    except:
+        avg_confidence = 0.75
+        c1_1_intelligibility = 75
+
+    # ===== C1.2: THOUGHT GROUPING (25%) =====
+    # Thinking pauses (between ideas) vs disruptive pauses (within phrases)
+    try:
+        thinking_pauses = 0
+        disruptive_pauses = 0
+
+        for i in range(len(words_data) - 1):
+            gap = words_data[i+1]['start_time'] - words_data[i]['end_time']
+
+            if gap >= 1.2:  # Pause threshold from spec
+                current_word = words_data[i]['word'].lower()
+                next_word = words_data[i+1]['word'].lower()
+
+                # Thinking pause markers: after sentence/idea boundaries
+                thinking_markers = ['.', '!', '?', 'entonces', 'luego', 'finalmente',
+                                   'además', 'pero', 'sin embargo', 'porque']
+
+                is_thinking_pause = any(marker in current_word for marker in thinking_markers)
+
+                if is_thinking_pause:
+                    thinking_pauses += 1
+                else:
+                    disruptive_pauses += 1
+
+        # Score based on spec section 2.4
+        if disruptive_pauses == 0:
+            c1_2_thought_grouping = 95
+        elif disruptive_pauses <= 1:
+            c1_2_thought_grouping = 85
+        elif disruptive_pauses <= 2:
+            c1_2_thought_grouping = 70
+        else:
+            c1_2_thought_grouping = 55
+    except:
+        thinking_pauses = 0
+        disruptive_pauses = 0
+        c1_2_thought_grouping = 75
+
+    # ===== C1.3: FLOW CONTINUITY (25%) =====
+    # Sustained forward movement without unnecessary interruptions
+    try:
+        # Calculate total speech time vs total elapsed time
+        if len(words_data) >= 2:
+            total_elapsed = words_data[-1]['end_time'] - words_data[0]['start_time']
+            total_speech = sum([w['end_time'] - w['start_time'] for w in words_data])
+
+            speech_ratio = total_speech / total_elapsed if total_elapsed > 0 else 0
+
+            # Count micro-pauses (0.3-1.2s) within phrases
+            micro_pauses = 0
+            for i in range(len(words_data) - 1):
+                gap = words_data[i+1]['start_time'] - words_data[i]['end_time']
+                if 0.3 <= gap < 1.2:
+                    micro_pauses += 1
+
+            # Score based on spec section 2.5
+            if speech_ratio >= 0.70 and micro_pauses <= 2:
+                c1_3_flow_continuity = 95
+            elif speech_ratio >= 0.60 and micro_pauses <= 4:
+                c1_3_flow_continuity = 80
+            elif speech_ratio >= 0.50:
+                c1_3_flow_continuity = 70
+            else:
+                c1_3_flow_continuity = 55
+        else:
+            c1_3_flow_continuity = 75
+            speech_ratio = 0
+            micro_pauses = 0
+    except:
+        c1_3_flow_continuity = 75
+        speech_ratio = 0
+        micro_pauses = 0
+
+    # ===== C1.4: STABILITY OVER TIME (20%) =====
+    # Consistent speaking rate (WPS standard deviation)
+    try:
         duration = words_data[-1]['end_time'] - words_data[0]['start_time']
         if duration > 3:
             window_wps = []
-            window_size = 3.0  # 3-second windows
+            window_size = 3.0
             start_time = words_data[0]['start_time']
 
             for i in range(int(duration // window_size)):
@@ -794,530 +886,712 @@ def evaluate_pronunciation_fluency(transcript, words_data):
             if len(window_wps) > 1:
                 wps_std_dev = statistics.stdev(window_wps)
 
-                # Score based on deviation
-                if wps_std_dev < 0.3:
-                    rhythm_score = 95
-                elif wps_std_dev < 0.6:
-                    rhythm_score = 75
-                    patterns_activated.append(('even_syllable_rhythm', 'medium'))
+                # Score based on spec section 2.6
+                if wps_std_dev <= 0.35:
+                    c1_4_stability = 95
+                elif wps_std_dev <= 0.60:
+                    c1_4_stability = 80
+                elif wps_std_dev <= 0.90:
+                    c1_4_stability = 65
                 else:
-                    rhythm_score = 55
-                    patterns_activated.append(('even_syllable_rhythm', 'high'))
+                    c1_4_stability = 50
             else:
-                rhythm_score = 75
+                c1_4_stability = 75
                 wps_std_dev = 0
         else:
-            # Too short for window analysis
-            rhythm_score = 75
+            c1_4_stability = 75
             wps_std_dev = 0
     except:
-        rhythm_score = 70
+        c1_4_stability = 75
         wps_std_dev = 0
 
-    # --- SUBCRITERION 1.2: FLOW CONTINUITY ---
-    # Distinguish internal pauses (bad) from strategic pauses (good)
-    try:
-        internal_pauses = 0
-        strategic_pauses = 0
+    # ===== CALCULATE C1 FINAL SCORE =====
+    c1_final_score = (c1_1_intelligibility * 0.30 +
+                      c1_2_thought_grouping * 0.25 +
+                      c1_3_flow_continuity * 0.25 +
+                      c1_4_stability * 0.20)
 
-        for i in range(len(words_data) - 1):
-            gap = words_data[i+1]['start_time'] - words_data[i]['end_time']
-
-            if gap > 1.5:  # Long pause detected
-                # Heuristic: pause after connector/end-of-idea words = strategic
-                current_word = words_data[i]['word'].lower()
-                strategic_markers = ['.', 'entonces', 'luego', 'finalmente', 'además', 'pero']
-
-                is_strategic = any(marker in current_word for marker in strategic_markers)
-
-                if is_strategic:
-                    strategic_pauses += 1
-                else:
-                    internal_pauses += 1
-
-        # Score based on internal vs strategic
-        if internal_pauses == 0:
-            flow_score = 95
-        elif internal_pauses <= 2:
-            flow_score = 75
-            patterns_activated.append(('natural_pausing', 'medium'))
-        else:
-            flow_score = 55
-            patterns_activated.append(('natural_pausing', 'high'))
-
-    except:
-        flow_score = 70
-        internal_pauses = 0
-        strategic_pauses = 0
-
-    # --- SUBCRITERION 1.3: VOWEL DURATION ---
-    # Detect WPS drops without corresponding long pauses (vowel dragging)
-    try:
-        wps_collapses = 0
-
-        if len(words_data) >= 4:
-            # Calculate WPS for each word pair
-            for i in range(len(words_data) - 3):
-                # Get WPS for segments of 2 words each
-                segment1_duration = words_data[i+1]['end_time'] - words_data[i]['start_time']
-                segment2_duration = words_data[i+3]['end_time'] - words_data[i+2]['start_time']
-
-                if segment1_duration > 0 and segment2_duration > 0:
-                    wps1 = 2 / segment1_duration
-                    wps2 = 2 / segment2_duration
-
-                    # Detect collapse (>40% drop)
-                    if wps2 < wps1 * 0.6:
-                        # Check if there's a long pause explaining the drop
-                        gap = words_data[i+2]['start_time'] - words_data[i+1]['end_time']
-                        if gap < 1.5:  # No long pause = vowel dragging
-                            wps_collapses += 1
-
-        if wps_collapses == 0:
-            vowel_score = 95
-        elif wps_collapses <= 2:
-            vowel_score = 75
-            patterns_activated.append(('pure_vowels', 'medium'))
-        else:
-            vowel_score = 55
-            patterns_activated.append(('pure_vowels', 'high'))
-
-    except:
-        vowel_score = 70
-        wps_collapses = 0
-
-    # --- SUBCRITERION 1.4: GLOBAL STABILITY (STT Confidence) ---
-    # This is used as a CEILING/FLOOR, not a direct score
-    try:
-        confidences = [w['confidence'] for w in words_data if 'confidence' in w]
-        if confidences:
-            avg_confidence = sum(confidences) / len(confidences)
-            stt_confidence_pct = avg_confidence * 100
-        else:
-            stt_confidence_pct = 75
-    except:
-        stt_confidence_pct = 75
-
-    # --- CALCULATE C1 SCORE ---
-    # Average of 3 behavioral subcriteria (NOT including STT confidence directly)
-    base_c1_score = (rhythm_score + flow_score + vowel_score) / 3
-
-    # --- APPLY STT CONFIDENCE AS CEILING ---
-    # STT confidence determines maximum possible score
-    if stt_confidence_pct >= 80:
-        # No restriction
-        c1_score = base_c1_score
-    elif stt_confidence_pct >= 70:
-        # Cap at 85
-        c1_score = min(85, base_c1_score)
-        patterns_activated.append(('fundamentals_needed', 'medium'))
-    else:
-        # Cap at 70, activate fundamentals
-        c1_score = min(70, base_c1_score)
-        patterns_activated.append(('fundamentals_needed', 'high'))
+    # ===== MINIMUM SCORE PROTECTION (Spec Section 2.7) =====
+    # If ALL conditions met: STT ≥ 0.90, Disruptive pauses ≤ 2, Rhythm std dev ≤ 0.60
+    # Then: C1_final = max(C1_calculated, 75)
+    if avg_confidence >= 0.90 and disruptive_pauses <= 2 and wps_std_dev <= 0.60:
+        c1_final_score = max(c1_final_score, 75)
 
     return {
-        'score': round(c1_score, 1),
-        'details': {
-            'rhythm_stability': round(rhythm_score, 1),
-            'flow_continuity': round(flow_score, 1),
-            'vowel_duration': round(vowel_score, 1),
-            'global_stability': round(stt_confidence_pct, 1),
-            'wps_std_dev': round(wps_std_dev, 2) if wps_std_dev else 0,
-            'internal_pauses': internal_pauses,
-            'strategic_pauses': strategic_pauses,
-            'wps_collapses': wps_collapses
+        'score': round(c1_final_score, 1),
+        'subcriteria': {
+            'c1_1_intelligibility': round(c1_1_intelligibility, 1),
+            'c1_2_thought_grouping': round(c1_2_thought_grouping, 1),
+            'c1_3_flow_continuity': round(c1_3_flow_continuity, 1),
+            'c1_4_stability': round(c1_4_stability, 1)
         },
-        'patterns_activated': patterns_activated
-    }
-
-
-def evaluate_functions(transcript, level='intermediate'):
-    """C2: Functional Language Control (25% weight)
-
-    Evaluates communicative intent through:
-    1. Level alignment - Uses expected structures for the task
-    2. Modality (3 layers) - Expresses intention, opinion, evaluation
-    3. Consistency - Sustained use (≥3 instances)
-    4. Functional clarity - Clear communicative purpose
-
-    Key principle: Subjunctive is a BONUS signal, not a requirement.
-    Evaluative modality without perfect subjunctive still counts.
-
-    Args:
-        transcript: Full transcribed text
-        level: Expected level (beginner/intermediate/advanced)
-
-    Returns:
-        dict with 'score' (0-100), 'detected', and 'modality_score'
-    """
-    text_lower = transcript.lower()
-    detected = {}
-    modality_detected = {}
-
-    # --- DETECT BASIC STRUCTURES ---
-    # Present (always relevant)
-    present_patterns = r'\b(soy|estoy|tengo|hablo|vivo|trabajo|estudio|como|hago|voy|es|son)\b'
-    present_matches = re.findall(present_patterns, text_lower)
-    detected['present'] = len(present_matches)
-
-    # Past tense (preterite)
-    preterite_patterns = r'\b(fui|hice|comí|dije|fue|hablé|estudié|trabajé|viví|tuve|estuvo|hizo|desperté|regresé)\b'
-    preterite_matches = re.findall(preterite_patterns, text_lower)
-    detected['preterite'] = len(preterite_matches)
-
-    # Past tense (imperfect)
-    imperfect_patterns = r'\b(era|estaba|tenía|iba|hacía|hablaba|comía|vivía|trabajaba|estudiaba)\b'
-    imperfect_matches = re.findall(imperfect_patterns, text_lower)
-    detected['imperfect'] = len(imperfect_matches)
-
-    # Future
-    future_patterns = r'\b(voy a|va a|vamos a|iré|será|haré|tendré|estaré|podré)\b'
-    future_matches = re.findall(future_patterns, text_lower)
-    detected['future'] = len(future_matches)
-
-    # Subjunctive (BONUS signal, not requirement)
-    subjunctive_patterns = r'\b(sea|esté|tenga|quiera|pueda|haya|espero que|es importante que|me preocupa que|no creo que|ojalá|para que)\b'
-    subjunctive_matches = re.findall(subjunctive_patterns, text_lower)
-    detected['subjunctive'] = len(subjunctive_matches)
-
-    # Conditional
-    conditional_patterns = r'\b(sería|haría|iría|tendría|podría|debería|si fuera|si tuviera|si pudiera)\b'
-    conditional_matches = re.findall(conditional_patterns, text_lower)
-    detected['conditional'] = len(conditional_matches)
-
-    # --- DETECT MODALITY (3 LAYERS) ---
-    # Layer 1: Basic modality (preferences, abilities)
-    basic_modality = re.findall(MODALITY_LAYERS['basic']['patterns'], text_lower)
-    modality_detected['basic'] = len(basic_modality)
-
-    # Layer 2: Cognitive modality (opinions, beliefs)
-    cognitive_modality = re.findall(MODALITY_LAYERS['cognitive']['patterns'], text_lower)
-    modality_detected['cognitive'] = len(cognitive_modality)
-
-    # Layer 3: Evaluative modality (judgments, norms)
-    evaluative_modality = re.findall(MODALITY_LAYERS['evaluative']['patterns'], text_lower)
-    modality_detected['evaluative'] = len(evaluative_modality)
-
-    # Calculate modality score (weighted by layer)
-    modality_score = 0
-    if modality_detected['basic'] > 0:
-        modality_score += 30 * MODALITY_LAYERS['basic']['weight']
-    if modality_detected['cognitive'] > 0:
-        modality_score += 30 * MODALITY_LAYERS['cognitive']['weight']
-    if modality_detected['evaluative'] > 0:
-        modality_score += 40 * MODALITY_LAYERS['evaluative']['weight']
-
-    # --- CALCULATE BASE SCORE (Level-appropriate structures) ---
-    base_score = 50
-
-    # BEGINNER level expectations
-    if level == 'beginner':
-        if detected['present'] >= 3:
-            base_score = 75
-        if modality_detected['basic'] >= 1:
-            base_score = min(95, base_score + 15)
-
-    # INTERMEDIATE level expectations
-    elif level == 'intermediate':
-        if detected['preterite'] >= 3 or detected['imperfect'] >= 3:
-            base_score = 75
-        if (detected['preterite'] + detected['imperfect']) >= 5:
-            base_score = 85
-        if modality_detected['cognitive'] >= 1:
-            base_score = min(95, base_score + 10)
-
-    # ADVANCED level expectations
-    elif level == 'advanced':
-        has_modal = modality_detected['evaluative'] >= 1 or modality_detected['cognitive'] >= 2
-
-        if has_modal:
-            base_score = 80  # Modality is critical at advanced level
-
-        # Subjunctive/conditional = BONUS (not requirement)
-        if detected['subjunctive'] >= 2 or detected['conditional'] >= 2:
-            base_score = min(100, base_score + 15)
-
-        # Combination of modality + complex structures = very high
-        if has_modal and (detected['subjunctive'] >= 1 or detected['conditional'] >= 1):
-            base_score = 95
-
-    # --- CONSISTENCY BONUS ---
-    # Reward sustained use (≥3 instances of main function)
-    total_structural_uses = sum([
-        detected['present'], detected['preterite'], detected['imperfect'],
-        detected['future'], detected['subjunctive'], detected['conditional']
-    ])
-
-    if total_structural_uses >= 8:
-        consistency_bonus = 5
-    elif total_structural_uses >= 5:
-        consistency_bonus = 3
-    else:
-        consistency_bonus = 0
-
-    final_score = min(100, base_score + modality_score + consistency_bonus)
-
-    return {
-        'score': round(final_score, 1),
-        'detected': detected,
-        'modality_detected': modality_detected,
-        'modality_score': round(modality_score, 1)
-    }
-
-
-def evaluate_text_type(transcript, words_data=None):
-    """C3: Discourse Organization (20% weight)
-
-    Evaluates prosodic discourse structure through:
-    1. Functional sentences - Strategic pauses OR connectors (NOT punctuation)
-    2. Connector use - Types and variety (temporal, causal, adversative)
-    3. Discourse type - Narrative, descriptive, or argumentative
-    4. Cohesion - Ideas connected vs isolated
-
-    Key principle: A "functional sentence" can exist without a pause if there's a connector.
-    Long fluent discourse is NOT penalized if it maintains semantic coherence.
-
-    Args:
-        transcript: Full transcribed text
-        words_data: Word timing data (optional, for pause-based analysis)
-
-    Returns:
-        dict with 'score' (0-100), 'details', and 'discourse_type'
-    """
-    words = transcript.split()
-    word_count = len(words)
-    text_lower = transcript.lower()
-
-    # --- DETECT CONNECTORS (by type) ---
-    connector_counts = {}
-    total_connectors = 0
-
-    for conn_type, conn_list in CONNECTOR_TYPES.items():
-        count = sum(1 for c in conn_list if c in text_lower)
-        connector_counts[conn_type] = count
-        total_connectors += count
-
-    # Connector variety (how many types used)
-    connector_variety = sum(1 for count in connector_counts.values() if count > 0)
-
-    # --- COUNT FUNCTIONAL SENTENCES ---
-    # Method 1: Use strategic pauses if available
-    if words_data and len(words_data) > 0:
-        functional_sentences = 1  # Start with 1 (first utterance)
-
-        for i in range(len(words_data) - 1):
-            gap = words_data[i+1]['start_time'] - words_data[i]['end_time']
-
-            # Strategic pause = end of sentence
-            if gap > 1.5:
-                current_word = words_data[i]['word'].lower()
-                # Check if pause follows a connector or end-of-idea marker
-                strategic_markers = ['entonces', 'luego', 'finalmente', 'además', 'pero', 'porque']
-                if any(marker in current_word for marker in strategic_markers):
-                    functional_sentences += 1
-
-    # Method 2: Fallback - count by connectors
-    else:
-        # Each connector implies a sentence boundary
-        functional_sentences = 1 + (total_connectors if total_connectors > 0 else 0)
-
-    # --- DETECT DISCOURSE TYPE ---
-    discourse_type = 'conversational'
-
-    # Academic discourse markers
-    academic_markers = ['considero que', 'es importante', 'es necesario', 'me parece importante',
-                        'por lo tanto', 'sin embargo', 'no obstante', 'debido a']
-    academic_count = sum(1 for marker in academic_markers if marker in text_lower)
-
-    # Narrative markers
-    narrative_markers = ['ayer', 'primero', 'después', 'luego', 'entonces', 'finalmente']
-    narrative_count = sum(1 for marker in narrative_markers if marker in text_lower)
-
-    # Argumentative markers
-    argumentative_markers = ['creo que', 'pienso que', 'me preocupa', 'aunque', 'sin embargo', 'por un lado']
-    argumentative_count = sum(1 for marker in argumentative_markers if marker in text_lower)
-
-    # Determine dominant type
-    if academic_count >= 2:
-        discourse_type = 'academic'
-    elif argumentative_count >= 2:
-        discourse_type = 'argumentative'
-    elif narrative_count >= 3:
-        discourse_type = 'narrative'
-    else:
-        discourse_type = 'descriptive'
-
-    # --- CALCULATE SCORE ---
-    score = 40  # Base
-
-    # Level 1: Very short (< 15 words)
-    if word_count < 15:
-        score = 50
-
-    # Level 2: Simple discourse (15-30 words, few connectors)
-    elif word_count < 30 or total_connectors == 0:
-        score = 60
-
-    # Level 3: Connected discourse (30+ words, some connectors)
-    elif word_count >= 30 and total_connectors >= 2:
-        score = 75
-
-    # Level 4: Organized discourse (multiple functional sentences + variety)
-    elif functional_sentences >= 3 and connector_variety >= 2:
-        score = 85
-
-    # Level 5: Academic/Extended discourse (complex connectors + length)
-    elif discourse_type in ['academic', 'argumentative'] and connector_variety >= 3:
-        score = 95
-
-    # BONUS: Very well-organized extended discourse
-    if word_count >= 60 and functional_sentences >= 5 and connector_variety >= 3:
-        score = min(100, score + 5)
-
-    return {
-        'score': round(score, 1),
         'details': {
-            'word_count': word_count,
-            'functional_sentences': functional_sentences,
-            'total_connectors': total_connectors,
-            'connector_variety': connector_variety,
-            'connector_counts': connector_counts,
-            'discourse_type': discourse_type
+            'stt_confidence': round(avg_confidence, 3),
+            'thinking_pauses': thinking_pauses,
+            'disruptive_pauses': disruptive_pauses,
+            'speech_ratio': round(speech_ratio, 2) if speech_ratio else 0,
+            'micro_pauses': micro_pauses if 'micro_pauses' in locals() else 0,
+            'wps_std_dev': round(wps_std_dev, 2) if wps_std_dev else 0
         }
     }
 
 
-def evaluate_context(transcript, level='intermediate'):
-    """C4: Contextual Lexical Richness (15% weight)
+def evaluate_communicative_function(transcript, level='intermediate'):
+    """C2: Communicative Function (30% weight)
 
-    Evaluates integrated vocabulary use through:
-    1. Variety ratio - Unique words / total words
-    2. Thematic progression - Relative to level (personal/everyday/abstract)
-    3. Academic vocabulary - BONUS signal, not requirement
-    4. Function words - Acceptable repetition (not penalized)
+    FACT Spec Section 3: Measures what the speaker can DO with Spanish.
 
-    Key principle: Progresion is relative to level.
-    - Beginner: Personal vocabulary = high score
-    - Intermediate: Everyday vocabulary = high score
-    - Advanced: Abstract vocabulary = high score
+    Core Principle: "Grammar is evidence of function, not the evaluation target."
 
-    Args:
-        transcript: Full transcribed text
-        level: Expected level (beginner/intermediate/advanced)
+    Subcomponents (per spec):
+    - C2.1 Task Fulfillment (30%): Addresses the prompt purpose
+    - C2.2 Functional Control (30%): Sustained use of intended function
+    - C2.3 Function Range (20%): Breadth of communicative actions
+    - C2.4 Meaning Precision (20%): Intended meaning conveyed clearly
+
+    Formula: C2 = (C2.1 × 0.30) + (C2.2 × 0.30) + (C2.3 × 0.20) + (C2.4 × 0.20)
 
     Returns:
-        dict with 'score' (0-100), 'details', and 'thematic_level'
+        dict with 'score' (0-100), 'subcriteria', 'details', 'can_dos_detected'
     """
-    words = transcript.lower().split()
-    if not words:
-        return {'score': 50, 'details': {}, 'thematic_level': 'none'}
+    text_lower = transcript.lower()
+    can_dos_detected = []
+    structures_detected = {}
 
-    # --- CALCULATE VARIETY RATIO ---
-    # Remove punctuation from words
-    clean_words = [re.sub(r'[^\w\s]', '', w) for w in words]
-    clean_words = [w for w in clean_words if w]
+    # ===== DETECT GRAMMATICAL STRUCTURES (Evidence of Function) =====
+    # Spec Section 3.5: Structures detected as signals of functional intent
 
-    # Exclude common function words from variety calculation
-    function_words = ['el', 'la', 'los', 'las', 'un', 'una', 'de', 'del', 'a', 'al',
-                     'en', 'con', 'por', 'para', 'que', 'y', 'o', 'pero', 'es', 'son']
-    content_words = [w for w in clean_words if w not in function_words]
+    # Present tense ser/estar (identification, location, states)
+    structures_detected['presente_ser_estar'] = len(re.findall(
+        r'\b(soy|eres|es|somos|son|estoy|estás|está|estamos|están)\b', text_lower
+    ))
 
-    if len(content_words) == 0:
-        variety_ratio = 0.5
+    # Present tense regular verbs (habitual actions)
+    structures_detected['presente_regular'] = len(re.findall(
+        r'\b(hablo|hablas|habla|hablamos|hablan|como|comes|come|comemos|comen|vivo|vives|vive|vivimos|viven|trabajo|trabajas|trabaja|trabajamos|trabajan|estudio|estudias|estudia|estudiamos|estudian)\b',
+        text_lower
+    ))
+
+    # Possessive adjectives (possession)
+    structures_detected['posesivos'] = len(re.findall(
+        r'\b(mi|mis|tu|tus|su|sus|nuestro|nuestra|nuestros|nuestras)\b', text_lower
+    ))
+
+    # Tener (possession/age)
+    structures_detected['tener'] = len(re.findall(
+        r'\b(tengo|tienes|tiene|tenemos|tienen)\b', text_lower
+    ))
+
+    # Ir a + infinitive (future intention)
+    structures_detected['ir_a'] = len(re.findall(
+        r'\b(voy a|vas a|va a|vamos a|van a)\b', text_lower
+    ))
+
+    # Estar + gerund (present progressive)
+    structures_detected['estar_gerundio'] = len(re.findall(
+        r'\b(estoy|estás|está|estamos|están)\s+\w+(ando|iendo)\b', text_lower
+    ))
+
+    # Gustar (preferences)
+    structures_detected['gustar'] = len(re.findall(
+        r'\b(me gusta|me gustan|te gusta|te gustan|le gusta|le gustan|nos gusta|nos gustan)\b',
+        text_lower
+    ))
+
+    # Preterite (completed actions in past)
+    structures_detected['preterite'] = len(re.findall(
+        r'\b(fui|fue|fueron|hice|hizo|hicieron|comí|comió|comieron|hablé|habló|hablaron|trabajé|trabajó|trabajaron|desperté|despertó|despertaron|regresé|regresó|regresaron)\b',
+        text_lower
+    ))
+
+    # Imperfect (descriptions/habitual past)
+    structures_detected['imperfect'] = len(re.findall(
+        r'\b(era|eras|éramos|eran|estaba|estabas|estábamos|estaban|tenía|tenías|teníamos|tenían|iba|ibas|íbamos|iban|hacía|hacías|hacíamos|hacían)\b',
+        text_lower
+    ))
+
+    # Reflexive verbs (daily routine)
+    structures_detected['reflexive'] = len(re.findall(
+        r'\b(me|te|se|nos)\s+(despert[oóé]|ducho|duchó|visto|vistió|llamo|llamó|siento|sintió)\b',
+        text_lower
+    ))
+
+    # Subjunctive (emotion/influence/doubt at advanced)
+    structures_detected['subjunctive'] = len(re.findall(
+        r'\b(sea|seas|seamos|sean|esté|estés|estemos|estén|tenga|tengas|tengamos|tengan|haya|hayas|hayamos|hayan|pueda|puedas|podamos|puedan|quiera|quieras|queramos|quieran|es importante que|me preocupa que|espero que|no creo que|para que|ojalá)\b',
+        text_lower
+    ))
+
+    # Conditional (hypothetical)
+    structures_detected['conditional'] = len(re.findall(
+        r'\b(sería|serías|seríamos|serían|haría|harías|haríamos|harían|tendría|tendrías|tendríamos|tendrían|podría|podrías|podríamos|podrían|debería|deberías|deberíamos|deberían)\b',
+        text_lower
+    ))
+
+    # Commands/imperatives (instructions)
+    structures_detected['commands'] = len(re.findall(
+        r'\b(habla|hable|come|coma|escribe|escriba|ve|vaya|haz|haga|ten|tenga)\b',
+        text_lower
+    ))
+
+    # Por vs para (purpose)
+    structures_detected['por_para'] = len(re.findall(
+        r'\b(por|para)\b', text_lower
+    ))
+
+    # ===== C2.1: TASK FULFILLMENT (30%) =====
+    # Does the speaker address the prompt purpose?
+    c2_1_task_fulfillment = 50
+
+    if level == 'beginner':
+        # Beginner prompt: "Introduce Yourself" - expect personal info
+        personal_info_markers = structures_detected['presente_ser_estar'] + structures_detected['tener']
+        if personal_info_markers >= 3:
+            c2_1_task_fulfillment = 90
+        elif personal_info_markers >= 2:
+            c2_1_task_fulfillment = 75
+        elif personal_info_markers >= 1:
+            c2_1_task_fulfillment = 60
+
+    elif level == 'intermediate':
+        # Intermediate prompt: "Describe Your Day" - expect past narration
+        past_markers = structures_detected['preterite'] + structures_detected['imperfect']
+        if past_markers >= 5:
+            c2_1_task_fulfillment = 90
+        elif past_markers >= 3:
+            c2_1_task_fulfillment = 75
+        elif past_markers >= 1:
+            c2_1_task_fulfillment = 60
+
+    elif level == 'advanced':
+        # Advanced prompt: "Technology and Education" - expect opinion/evaluation
+        evaluative_markers = structures_detected['subjunctive'] + structures_detected['conditional']
+        has_opinion_phrases = bool(re.search(
+            r'\b(creo que|pienso que|considero que|me parece que|en mi opinión|es importante que|es necesario que|me preocupa que)\b',
+            text_lower
+        ))
+        if has_opinion_phrases and evaluative_markers >= 2:
+            c2_1_task_fulfillment = 95
+        elif has_opinion_phrases and evaluative_markers >= 1:
+            c2_1_task_fulfillment = 85
+        elif has_opinion_phrases:
+            c2_1_task_fulfillment = 70
+
+    # ===== C2.2: FUNCTIONAL CONTROL (30%) =====
+    # Sustained use of intended communicative function
+    c2_2_functional_control = 50
+
+    if level == 'beginner':
+        # Control over present tense description
+        total_present = structures_detected['presente_ser_estar'] + structures_detected['presente_regular']
+        if total_present >= 5:
+            c2_2_functional_control = 90
+        elif total_present >= 3:
+            c2_2_functional_control = 75
+        elif total_present >= 2:
+            c2_2_functional_control = 60
+
+    elif level == 'intermediate':
+        # Control over narration (preterite + imperfect coordination)
+        has_both = structures_detected['preterite'] >= 2 and structures_detected['imperfect'] >= 1
+        total_past = structures_detected['preterite'] + structures_detected['imperfect']
+        if has_both and total_past >= 6:
+            c2_2_functional_control = 95
+        elif total_past >= 4:
+            c2_2_functional_control = 80
+        elif total_past >= 2:
+            c2_2_functional_control = 65
+
+    elif level == 'advanced':
+        # Control over argumentation (subjunctive + connectors + evaluative language)
+        has_subjunctive = structures_detected['subjunctive'] >= 2
+        has_conditional = structures_detected['conditional'] >= 1
+        complex_structures = has_subjunctive or has_conditional
+        if complex_structures:
+            c2_2_functional_control = 85
+        else:
+            c2_2_functional_control = 65
+
+    # ===== C2.3: FUNCTION RANGE (20%) =====
+    # Breadth of communicative actions demonstrated
+    c2_3_function_range = 50
+
+    # Count distinct function types used
+    function_types_used = 0
+    if structures_detected['presente_ser_estar'] >= 1: function_types_used += 1
+    if structures_detected['preterite'] >= 1: function_types_used += 1
+    if structures_detected['imperfect'] >= 1: function_types_used += 1
+    if structures_detected['ir_a'] >= 1: function_types_used += 1
+    if structures_detected['gustar'] >= 1: function_types_used += 1
+    if structures_detected['subjunctive'] >= 1: function_types_used += 1
+    if structures_detected['conditional'] >= 1: function_types_used += 1
+    if structures_detected['reflexive'] >= 1: function_types_used += 1
+
+    # Score based on variety
+    if function_types_used >= 5:
+        c2_3_function_range = 95
+    elif function_types_used >= 4:
+        c2_3_function_range = 85
+    elif function_types_used >= 3:
+        c2_3_function_range = 75
+    elif function_types_used >= 2:
+        c2_3_function_range = 65
+
+    # ===== C2.4: MEANING PRECISION (20%) =====
+    # Intended meaning conveyed without confusion
+    c2_4_meaning_precision = 50
+
+    # Check for coherent use of structures (not random)
+    # Higher precision = consistent tense use, appropriate modality
+    word_count = len(transcript.split())
+    structure_density = sum(structures_detected.values()) / max(word_count, 1)
+
+    # Good precision: 0.2-0.4 structures per word (coherent functional language)
+    if 0.2 <= structure_density <= 0.4:
+        c2_4_meaning_precision = 90
+    elif 0.15 <= structure_density <= 0.5:
+        c2_4_meaning_precision = 80
+    elif 0.10 <= structure_density:
+        c2_4_meaning_precision = 70
     else:
+        c2_4_meaning_precision = 60
+
+    # ===== CALCULATE C2 FINAL SCORE =====
+    c2_final_score = (c2_1_task_fulfillment * 0.30 +
+                      c2_2_functional_control * 0.30 +
+                      c2_3_function_range * 0.20 +
+                      c2_4_meaning_precision * 0.20)
+
+    return {
+        'score': round(c2_final_score, 1),
+        'subcriteria': {
+            'c2_1_task_fulfillment': round(c2_1_task_fulfillment, 1),
+            'c2_2_functional_control': round(c2_2_functional_control, 1),
+            'c2_3_function_range': round(c2_3_function_range, 1),
+            'c2_4_meaning_precision': round(c2_4_meaning_precision, 1)
+        },
+        'details': {
+            'structures_detected': structures_detected,
+            'function_types_used': function_types_used if 'function_types_used' in locals() else 0,
+            'structure_density': round(structure_density, 3) if 'structure_density' in locals() else 0
+        },
+        'can_dos_detected': can_dos_detected
+    }
+
+
+def evaluate_discourse_organization(transcript, words_data=None):
+    """C3: Discourse Organization (20% weight)
+
+    FACT Spec Section 4: Measures how ideas are structured and connected.
+
+    Core Principle: "Organization is about the listener's experience, not linguistic perfection."
+
+    Subcomponents (per spec):
+    - C3.1 Logical Sequencing (30%): Ideas follow predictable order
+    - C3.2 Cohesion (30%): Ideas are linked meaningfully
+    - C3.3 Development (20%): Ideas expanded beyond phrases
+    - C3.4 Discourse Type Alignment (20%): Structure matches task type
+
+    Formula: C3 = (C3.1 × 0.30) + (C3.2 × 0.30) + (C3.3 × 0.20) + (C3.4 × 0.20)
+
+    Returns:
+        dict with 'score' (0-100), 'subcriteria', 'details'
+    """
+    text_lower = transcript.lower()
+    words = transcript.split()
+    word_count = len(words)
+
+    # ===== DETECT CONNECTORS BY TYPE (Spec Section 4.4) =====
+    # Beginner connectors
+    beginner_connectors = {
+        'additive': ['y', 'también'],
+        'contrast': ['pero'],
+        'sequence': ['primero', 'después', 'luego'],
+        'temporal': ['ahora', 'hoy', 'mañana'],
+        'causal': ['porque']
+    }
+
+    # Intermediate connectors
+    intermediate_connectors = {
+        'temporal_sequence': ['primero', 'después', 'luego', 'entonces', 'más tarde', 'finalmente'],
+        'temporal_context': ['antes', 'mientras', 'durante', 'cuando'],
+        'frequency': ['siempre', 'nunca', 'a veces', 'generalmente'],
+        'comparison': ['más que', 'menos que', 'tan'],
+        'causal': ['porque', 'por eso', 'entonces']
+    }
+
+    # Advanced connectors
+    advanced_connectors = {
+        'causal': ['porque', 'por eso', 'debido a', 'ya que', 'puesto que'],
+        'purpose': ['para', 'para que', 'con el fin de'],
+        'consequence': ['por lo tanto', 'entonces', 'así que', 'en consecuencia'],
+        'concession': ['aunque', 'a pesar de', 'sin embargo'],
+        'contrast': ['sin embargo', 'no obstante', 'por el contrario', 'en cambio'],
+        'condition': ['si', 'en caso de', 'siempre que'],
+        'projection': ['en el futuro', 'más adelante', 'eventualmente']
+    }
+
+    # Count connectors
+    connector_counts = {}
+    total_connectors = 0
+
+    # Check all connector types (combine all levels)
+    all_connectors = {**beginner_connectors, **intermediate_connectors, **advanced_connectors}
+    for conn_type, conn_list in all_connectors.items():
+        count = 0
+        for connector in conn_list:
+            count += text_lower.count(connector)
+        connector_counts[conn_type] = count
+        total_connectors += count
+
+    connector_variety = sum(1 for count in connector_counts.values() if count > 0)
+
+    # ===== C3.1: LOGICAL SEQUENCING (30%) =====
+    # Ideas follow predictable order (temporal or logical)
+    c3_1_logical_sequencing = 50
+
+    temporal_sequencing = connector_counts.get('temporal_sequence', 0) + connector_counts.get('sequence', 0)
+    logical_ordering = connector_counts.get('consequence', 0) + connector_counts.get('purpose', 0)
+
+    total_sequencing = temporal_sequencing + logical_ordering
+
+    if total_sequencing >= 4:
+        c3_1_logical_sequencing = 95
+    elif total_sequencing >= 3:
+        c3_1_logical_sequencing = 85
+    elif total_sequencing >= 2:
+        c3_1_logical_sequencing = 75
+    elif total_sequencing >= 1:
+        c3_1_logical_sequencing = 65
+
+    # ===== C3.2: COHESION (30%) =====
+    # Ideas are linked meaningfully with functional connectors
+    c3_2_cohesion = 50
+
+    cohesive_connectors = (connector_counts.get('causal', 0) +
+                          connector_counts.get('contrast', 0) +
+                          connector_counts.get('additive', 0) +
+                          connector_counts.get('concession', 0))
+
+    if cohesive_connectors >= 4 and connector_variety >= 3:
+        c3_2_cohesion = 95
+    elif cohesive_connectors >= 3 and connector_variety >= 2:
+        c3_2_cohesion = 85
+    elif cohesive_connectors >= 2:
+        c3_2_cohesion = 75
+    elif cohesive_connectors >= 1:
+        c3_2_cohesion = 65
+
+    # ===== C3.3: DEVELOPMENT (20%) =====
+    # Ideas expanded beyond simple phrases
+    c3_3_development = 50
+
+    # Count functional sentences (estimated by pause patterns or connectors)
+    if words_data and len(words_data) > 0:
+        functional_sentences = 1
+        for i in range(len(words_data) - 1):
+            gap = words_data[i+1]['start_time'] - words_data[i]['end_time']
+            if gap >= 1.5:  # Strategic pause threshold
+                functional_sentences += 1
+    else:
+        # Fallback: estimate by connectors
+        functional_sentences = max(1, total_connectors + 1)
+
+    avg_idea_length = word_count / functional_sentences if functional_sentences > 0 else word_count
+
+    # Score based on idea elaboration
+    if avg_idea_length >= 15 and functional_sentences >= 3:
+        c3_3_development = 95
+    elif avg_idea_length >= 10 and functional_sentences >= 2:
+        c3_3_development = 80
+    elif avg_idea_length >= 7:
+        c3_3_development = 70
+    elif avg_idea_length >= 5:
+        c3_3_development = 60
+
+    # ===== C3.4: DISCOURSE TYPE ALIGNMENT (20%) =====
+    # Structure matches the prompt task type
+    c3_4_discourse_type = 50
+
+    # Detect discourse type based on markers
+    narrative_markers = ['ayer', 'primero', 'después', 'luego', 'entonces', 'finalmente', 'cuando']
+    argumentative_markers = ['creo que', 'pienso que', 'considero que', 'me parece', 'es importante',
+                            'me preocupa', 'aunque', 'sin embargo', 'por lo tanto']
+    descriptive_markers = ['es', 'está', 'tiene', 'hay', 'son']
+
+    narrative_count = sum(1 for marker in narrative_markers if marker in text_lower)
+    argumentative_count = sum(1 for marker in argumentative_markers if marker in text_lower)
+    descriptive_count = sum(1 for marker in descriptive_markers if marker in text_lower)
+
+    # Determine discourse type
+    if argumentative_count >= 3:
+        discourse_type = 'argumentative'
+        c3_4_discourse_type = 90
+    elif narrative_count >= 3:
+        discourse_type = 'narrative'
+        c3_4_discourse_type = 90
+    elif descriptive_count >= 3:
+        discourse_type = 'descriptive'
+        c3_4_discourse_type = 75
+    else:
+        discourse_type = 'conversational'
+        c3_4_discourse_type = 60
+
+    # ===== CALCULATE C3 FINAL SCORE =====
+    c3_final_score = (c3_1_logical_sequencing * 0.30 +
+                      c3_2_cohesion * 0.30 +
+                      c3_3_development * 0.20 +
+                      c3_4_discourse_type * 0.20)
+
+    return {
+        'score': round(c3_final_score, 1),
+        'subcriteria': {
+            'c3_1_logical_sequencing': round(c3_1_logical_sequencing, 1),
+            'c3_2_cohesion': round(c3_2_cohesion, 1),
+            'c3_3_development': round(c3_3_development, 1),
+            'c3_4_discourse_type': round(c3_4_discourse_type, 1)
+        },
+        'details': {
+            'word_count': word_count,
+            'total_connectors': total_connectors,
+            'connector_variety': connector_variety,
+            'functional_sentences': functional_sentences if 'functional_sentences' in locals() else 0,
+            'avg_idea_length': round(avg_idea_length, 1) if 'avg_idea_length' in locals() else 0,
+            'discourse_type': discourse_type if 'discourse_type' in locals() else 'unknown',
+            'connector_counts': connector_counts
+        }
+    }
+
+
+def evaluate_lexical_use(transcript, level='intermediate'):
+    """C4: Lexical Use (25% weight)
+
+    FACT Spec Section 5: Measures how effectively vocabulary serves the communicative message.
+
+    Core Principle: "Good vocabulary is functional vocabulary, not fancy vocabulary."
+
+    Subcomponents (per spec):
+    - C4.1 Lexical Fit (30%): Words match the topic
+    - C4.2 Lexical Sufficiency (30%): Enough vocabulary to express ideas
+    - C4.3 Lexical Variety (20%): Avoids excessive repetition
+    - C4.4 Conceptual Level (20%): Vocabulary appropriate to task complexity
+
+    Formula: C4 = (C4.1 × 0.30) + (C4.2 × 0.30) + (C4.3 × 0.20) + (C4.4 × 0.20)
+
+    Returns:
+        dict with 'score' (0-100), 'subcriteria', 'details'
+    """
+    text_lower = transcript.lower()
+    words = transcript.lower().split()
+
+    if not words:
+        return {
+            'score': 50,
+            'subcriteria': {
+                'c4_1_lexical_fit': 50,
+                'c4_2_lexical_sufficiency': 50,
+                'c4_3_lexical_variety': 50,
+                'c4_4_conceptual_level': 50
+            },
+            'details': {}
+        }
+
+    # ===== EXPECTED VOCABULARY BY LEVEL (Spec Section 5.4) =====
+    # Beginner Level Vocabulary
+    beginner_vocab = {
+        'identity': ['nombre', 'edad', 'nacionalidad', 'origen', 'llamo', 'años', 'soy'],
+        'occupations': ['estudiante', 'profesor', 'trabajo', 'médico', 'estudio'],
+        'languages': ['español', 'inglés', 'idioma', 'hablo', 'aprendiendo'],
+        'family': ['familia', 'padre', 'madre', 'hermano', 'hijo', 'hermanos'],
+        'hobbies': ['leer', 'cocinar', 'deportes', 'música', 'viajar', 'gusta'],
+        'time': ['día', 'hora', 'mañana', 'tarde', 'noche']
+    }
+
+    # Intermediate Level Vocabulary
+    intermediate_vocab = {
+        'shopping': ['comprar', 'vender', 'precio', 'mercado', 'tienda', 'compré'],
+        'daily_routine': ['despertar', 'desayunar', 'duchar', 'vestir', 'desperté', 'desayuné'],
+        'food': ['comida', 'desayuno', 'almuerzo', 'cena', 'cocinar', 'café'],
+        'health': ['salud', 'médico', 'enfermo', 'dolor', 'síntomas', 'dolía'],
+        'past_activities': ['ayer', 'fui', 'hice', 'dije', 'comí', 'hablé', 'regresé'],
+        'experiences': ['viaje', 'experiencia', 'evento', 'celebración', 'fue', 'sentía']
+    }
+
+    # Advanced Level Vocabulary
+    advanced_vocab = {
+        'technology': ['tecnología', 'digital', 'plataforma', 'herramienta', 'plataformas', 'digitales'],
+        'education': ['educación', 'estudiante', 'aprendizaje', 'enseñanza', 'estudiantes', 'aprender'],
+        'abstract_concepts': ['desarrollo', 'cambio', 'importancia', 'necesidad', 'importante', 'necesario'],
+        'evaluation': ['beneficio', 'problema', 'desafío', 'ventaja', 'preocupa', 'parece'],
+        'opinion_markers': ['creo', 'pienso', 'considero', 'opinión', 'perspectiva'],
+        'emotion': ['preocupa', 'alegra', 'molesta', 'importa', 'emociona'],
+        'future_projection': ['futuro', 'debería', 'podría', 'será', 'cambiar', 'híbrida']
+    }
+
+    # ===== COUNT TOPIC-ALIGNED KEYWORDS BY LEVEL =====
+    topic_keywords_found = 0
+
+    if level == 'beginner':
+        for category, keywords in beginner_vocab.items():
+            for keyword in keywords:
+                if keyword in text_lower:
+                    topic_keywords_found += 1
+
+    elif level == 'intermediate':
+        for category, keywords in intermediate_vocab.items():
+            for keyword in keywords:
+                if keyword in text_lower:
+                    topic_keywords_found += 1
+
+    elif level == 'advanced':
+        for category, keywords in advanced_vocab.items():
+            for keyword in keywords:
+                if keyword in text_lower:
+                    topic_keywords_found += 1
+
+    # ===== C4.1: LEXICAL FIT (30%) =====
+    # Words match the topic (Spec Section 5.5)
+    c4_1_lexical_fit = 50
+
+    word_count = len(words)
+    if word_count > 0:
+        topic_alignment_ratio = topic_keywords_found / word_count
+
+        if topic_alignment_ratio >= 0.30:  # 80%+ match (adjusted for shorter transcripts)
+            c4_1_lexical_fit = 95
+        elif topic_alignment_ratio >= 0.20:  # 60-79% match
+            c4_1_lexical_fit = 80
+        elif topic_alignment_ratio >= 0.10:  # 40-59% match
+            c4_1_lexical_fit = 70
+        elif topic_alignment_ratio >= 0.05:  # Some match
+            c4_1_lexical_fit = 60
+
+    # ===== C4.2: LEXICAL SUFFICIENCY (30%) =====
+    # Enough vocabulary to express ideas
+    c4_2_lexical_sufficiency = 50
+
+    # Measure total keywords vs minimum needed
+    if level == 'beginner':
+        if topic_keywords_found >= 6:
+            c4_2_lexical_sufficiency = 90
+        elif topic_keywords_found >= 4:
+            c4_2_lexical_sufficiency = 75
+        elif topic_keywords_found >= 2:
+            c4_2_lexical_sufficiency = 60
+
+    elif level == 'intermediate':
+        if topic_keywords_found >= 8:
+            c4_2_lexical_sufficiency = 90
+        elif topic_keywords_found >= 5:
+            c4_2_lexical_sufficiency = 75
+        elif topic_keywords_found >= 3:
+            c4_2_lexical_sufficiency = 60
+
+    elif level == 'advanced':
+        if topic_keywords_found >= 10:
+            c4_2_lexical_sufficiency = 95
+        elif topic_keywords_found >= 7:
+            c4_2_lexical_sufficiency = 80
+        elif topic_keywords_found >= 4:
+            c4_2_lexical_sufficiency = 65
+
+    # ===== C4.3: LEXICAL VARIETY (20%) =====
+    # Avoids excessive repetition
+    c4_3_lexical_variety = 50
+
+    # Calculate variety ratio (unique words / total words)
+    clean_words = [re.sub(r'[^\w\s]', '', w) for w in words if w]
+    function_words = ['el', 'la', 'los', 'las', 'un', 'una', 'de', 'del', 'a', 'al',
+                     'en', 'con', 'por', 'para', 'que', 'y', 'o', 'pero', 'es', 'son', 'está', 'están']
+    content_words = [w for w in clean_words if w and w not in function_words]
+
+    if len(content_words) > 0:
         unique_content = set(content_words)
         variety_ratio = len(unique_content) / len(content_words)
 
-    # --- DETECT THEMATIC LEVEL ---
-    text_lower = transcript.lower()
-
-    # Personal vocabulary
-    personal_words = ['yo', 'mi', 'me', 'mis', 'nombre', 'soy', 'tengo', 'familia', 'años', 'casa', 'amigo']
-    personal_count = sum(1 for w in personal_words if w in text_lower)
-
-    # Everyday vocabulary
-    everyday_words = ['trabajo', 'escuela', 'comer', 'estudiar', 'tiempo', 'día', 'hacer', 'ir',
-                     'desperté', 'desayuné', 'almorcé', 'regresé', 'hablé']
-    everyday_count = sum(1 for w in everyday_words if w in text_lower)
-
-    # Abstract/academic vocabulary (BONUS signal)
-    abstract_words = ['sociedad', 'cultura', 'problema', 'educación', 'importante', 'necesario',
-                     'tecnología', 'futuro', 'desarrollar', 'híbrido', 'considero', 'democratiza',
-                     'acentúa', 'brecha', 'integrando']
-    abstract_count = sum(1 for w in abstract_words if w in text_lower)
-
-    # Determine thematic level
-    if abstract_count >= 2:
-        thematic_level = 'abstract'
-    elif everyday_count >= 3:
-        thematic_level = 'everyday'
-    elif personal_count >= 2:
-        thematic_level = 'personal'
+        if variety_ratio >= 0.75:
+            c4_3_lexical_variety = 95
+        elif variety_ratio >= 0.65:
+            c4_3_lexical_variety = 85
+        elif variety_ratio >= 0.55:
+            c4_3_lexical_variety = 75
+        elif variety_ratio >= 0.45:
+            c4_3_lexical_variety = 65
+        else:
+            c4_3_lexical_variety = 55
     else:
-        thematic_level = 'basic'
+        variety_ratio = 0.5
 
-    # --- CALCULATE SCORE (relative to level) ---
-    base_score = 50
+    # ===== C4.4: CONCEPTUAL LEVEL (20%) =====
+    # Vocabulary appropriate to task complexity
+    c4_4_conceptual_level = 50
 
-    # BEGINNER level: Personal vocabulary = high score
+    # Detect thematic level based on vocabulary used
+    personal_count = sum(1 for cat in beginner_vocab.values() for w in cat if w in text_lower)
+    everyday_count = sum(1 for cat in intermediate_vocab.values() for w in cat if w in text_lower)
+    abstract_count = sum(1 for cat in advanced_vocab.values() for w in cat if w in text_lower)
+
+    # Score based on level-appropriate conceptual complexity
     if level == 'beginner':
-        if thematic_level == 'personal' and variety_ratio >= 0.50:
-            base_score = 85
-        elif thematic_level == 'personal':
-            base_score = 75
-        elif variety_ratio >= 0.60:
-            base_score = 70
+        if personal_count >= 5:
+            c4_4_conceptual_level = 90
+            thematic_level = 'personal'
+        elif personal_count >= 3:
+            c4_4_conceptual_level = 75
+            thematic_level = 'personal'
         else:
-            base_score = 60
+            c4_4_conceptual_level = 60
+            thematic_level = 'basic'
 
-    # INTERMEDIATE level: Everyday vocabulary = high score
     elif level == 'intermediate':
-        if thematic_level == 'everyday' and variety_ratio >= 0.65:
-            base_score = 85
-        elif thematic_level == 'everyday':
-            base_score = 75
-        elif thematic_level == 'abstract':
-            base_score = 90  # Bonus for going beyond expected
-        elif variety_ratio >= 0.60:
-            base_score = 65
+        if everyday_count >= 6:
+            c4_4_conceptual_level = 90
+            thematic_level = 'everyday'
+        elif everyday_count >= 4:
+            c4_4_conceptual_level = 75
+            thematic_level = 'everyday'
+        elif abstract_count >= 3:
+            c4_4_conceptual_level = 95  # Bonus for exceeding level
+            thematic_level = 'abstract'
         else:
-            base_score = 55
+            c4_4_conceptual_level = 60
+            thematic_level = 'basic'
 
-    # ADVANCED level: Abstract vocabulary = high score
     elif level == 'advanced':
-        if thematic_level == 'abstract' and variety_ratio >= 0.70:
-            base_score = 95
-        elif thematic_level == 'abstract':
-            base_score = 85
-        elif thematic_level == 'everyday':
-            base_score = 70  # Not penalized, but not ideal for advanced
+        if abstract_count >= 8:
+            c4_4_conceptual_level = 95
+            thematic_level = 'abstract'
+        elif abstract_count >= 5:
+            c4_4_conceptual_level = 85
+            thematic_level = 'abstract'
+        elif everyday_count >= 5:
+            c4_4_conceptual_level = 70
+            thematic_level = 'everyday'
         else:
-            base_score = 60
+            c4_4_conceptual_level = 60
+            thematic_level = 'basic'
 
-    # --- BONUS for high variety regardless of level ---
-    if variety_ratio >= 0.80:
-        variety_bonus = 5
-    elif variety_ratio >= 0.75:
-        variety_bonus = 3
-    else:
-        variety_bonus = 0
-
-    final_score = min(100, base_score + variety_bonus)
+    # ===== CALCULATE C4 FINAL SCORE =====
+    c4_final_score = (c4_1_lexical_fit * 0.30 +
+                      c4_2_lexical_sufficiency * 0.30 +
+                      c4_3_lexical_variety * 0.20 +
+                      c4_4_conceptual_level * 0.20)
 
     return {
-        'score': round(final_score, 1),
-        'details': {
-            'variety_ratio': round(variety_ratio, 2),
-            'unique_content_words': len(set(content_words)),
-            'total_content_words': len(content_words),
-            'thematic_counts': {
-                'personal': personal_count,
-                'everyday': everyday_count,
-                'abstract': abstract_count
-            }
+        'score': round(c4_final_score, 1),
+        'subcriteria': {
+            'c4_1_lexical_fit': round(c4_1_lexical_fit, 1),
+            'c4_2_lexical_sufficiency': round(c4_2_lexical_sufficiency, 1),
+            'c4_3_lexical_variety': round(c4_3_lexical_variety, 1),
+            'c4_4_conceptual_level': round(c4_4_conceptual_level, 1)
         },
-        'thematic_level': thematic_level
+        'details': {
+            'topic_keywords_found': topic_keywords_found,
+            'variety_ratio': round(variety_ratio, 2) if 'variety_ratio' in locals() else 0,
+            'unique_content_words': len(set(content_words)) if content_words else 0,
+            'total_content_words': len(content_words) if content_words else 0,
+            'thematic_level': thematic_level if 'thematic_level' in locals() else 'unknown'
+        }
     }
 
 
@@ -1421,156 +1695,236 @@ def evaluate_prompt_alignment(transcript, c1_score, c2_score, c3_score, c4_score
 
 
 def actfl_fact_assessment(transcription_data, level='intermediate', prompt_type='free_speech'):
-    """Main FACT assessment function based on instructor's rubric
+    """Main FACT Speech Evaluation System Assessment
 
-    NEW Weights (final specification):
-    - C1: Pronunciation Behavior: 30%
-    - C2: Functional Language Control: 25%
+    FACT Spec Section 7: Complete system implementation per spec version 1.0
+
+    Weights (Spec Section 1.3):
+    - C1: Speech Clarity: 25%
+    - C2: Communicative Function: 30%
     - C3: Discourse Organization: 20%
-    - C4: Contextual Lexical Richness: 15%
-    - C5: Prompt Alignment: 10%
+    - C4: Lexical Use: 25%
 
-    Score ranges:
-    - 85-100: Exceeds Expectations
-    - 75-84: Meets Expectations
-    - 60-74: Partially Meets Expectations
-    - 0-59: Does Not Meet Expectations
+    Formula (Spec Section 7.3):
+    Final Score = (C1 × 0.25) + (C2 × 0.30) + (C3 × 0.20) + (C4 × 0.25)
 
     Args:
         transcription_data: dict with 'transcript' and 'words'
         level: Expected level (beginner/intermediate/advanced)
-        prompt_type: Type of prompt for C5 alignment check
+        prompt_type: Type of prompt (for logging only)
 
     Returns:
-        dict with score, feedback, strengths, areas_for_improvement, patterns
+        dict with score, feedback, strengths, areas_for_improvement
     """
     transcript = transcription_data.get('transcript', '')
     words_data = transcription_data.get('words', [])
 
+    # Error handling (Spec Section 7.4)
     if not transcript:
         return {
-            'score': 70,
-            'feedback': "We couldn't detect your speech. Please ensure your microphone is working and try speaking clearly.",
+            'score': 50,
+            'feedback': "Unable to process audio. Please try again.",
             'strengths': [],
-            'areas_for_improvement': ["Check microphone connection and reduce background noise"],
-            'fact_breakdown': {},
-            'patterns': []
+            'areas_for_improvement': ["Audio quality affected scoring. Please try again in a quiet environment."],
+            'fact_breakdown': {}
         }
 
-    # --- EVALUATE EACH FACT COMPONENT ---
-    c1_pronunciation = evaluate_pronunciation_fluency(transcript, words_data)
-    c2_functions = evaluate_functions(transcript, level=level)
-    c3_text_type = evaluate_text_type(transcript, words_data=words_data)
-    c4_context = evaluate_context(transcript, level=level)
-    c5_alignment = evaluate_prompt_alignment(
-        transcript,
-        c1_pronunciation['score'],
-        c2_functions['score'],
-        c3_text_type['score'],
-        c4_context['score'],
-        prompt_type=prompt_type
+    # ===== EVALUATE EACH CRITERION =====
+    c1_speech_clarity = evaluate_speech_clarity(transcript, words_data)
+    c2_communicative_function = evaluate_communicative_function(transcript, level=level)
+    c3_discourse_organization = evaluate_discourse_organization(transcript, words_data=words_data)
+    c4_lexical_use = evaluate_lexical_use(transcript, level=level)
+
+    # ===== CALCULATE WEIGHTED FINAL SCORE (Spec Section 7.3) =====
+    final_score = (
+        c1_speech_clarity['score'] * 0.25 +
+        c2_communicative_function['score'] * 0.30 +
+        c3_discourse_organization['score'] * 0.20 +
+        c4_lexical_use['score'] * 0.25
     )
 
-    # --- CALCULATE WEIGHTED FINAL SCORE ---
-    base_final_score = (
-        c1_pronunciation['score'] * 0.30 +
-        c2_functions['score'] * 0.25 +
-        c3_text_type['score'] * 0.20 +
-        c4_context['score'] * 0.15 +
-        c5_alignment['score'] * 0.10
-    )
-
-    # --- APPLY LEVEL MULTIPLIERS (for dynamic thresholds) ---
-    # Multipliers only apply to penalties for issues, not to boost scores
-    level_multiplier = LEVEL_CONFIGS.get(level, {}).get('level_multiplier', 1.0)
-
-    # Calculate penalty based on distance from 100
-    distance_from_perfect = 100 - base_final_score
-    adjusted_penalty = distance_from_perfect * level_multiplier
-    final_score = max(0, 100 - adjusted_penalty)
-
-    # --- CAPA 3: DIAGNOSTIC LAYER (patterns NEVER affect score) ---
-    # Collect all signals from CAPA 2
-    raw_signals = c1_pronunciation.get('patterns_activated', [])
-
-    # Call diagnostic engine
-    diagnostic_patterns = diagnose_patterns(raw_signals, final_score, level)
-
-    # --- Generate simple feedback (CAPA 4 placeholder) ---
-    # Per spec: Only score + max 3 diagnostic labels, NO explanations yet
-    feedback_text = _generate_simple_feedback(final_score)
-    diagnostic_labels = _generate_diagnostic_labels(diagnostic_patterns)
+    # ===== GENERATE FEEDBACK (Spec Section 9) =====
+    feedback_text = _generate_score_explanation(final_score)
+    strengths = _generate_strengths(final_score, c1_speech_clarity, c2_communicative_function,
+                                    c3_discourse_organization, c4_lexical_use, level)
+    improvements = _generate_improvements(final_score, c1_speech_clarity, c2_communicative_function,
+                                         c3_discourse_organization, c4_lexical_use, level)
 
     logger.info(f"FACT Assessment (Level: {level}) - "
-                f"C1: {c1_pronunciation['score']}, C2: {c2_functions['score']}, "
-                f"C3: {c3_text_type['score']}, C4: {c4_context['score']}, "
-                f"C5: {c5_alignment['score']}, Final: {final_score}, "
-                f"Patterns: {len(diagnostic_patterns)}")
+                f"C1: {c1_speech_clarity['score']}, "
+                f"C2: {c2_communicative_function['score']}, "
+                f"C3: {c3_discourse_organization['score']}, "
+                f"C4: {c4_lexical_use['score']}, "
+                f"Final: {final_score}")
 
     return {
         'score': round(final_score, 1),
         'feedback': feedback_text,
-        'strengths': [],  # Empty for now (CAPA 4 placeholder)
-        'areas_for_improvement': diagnostic_labels,  # Max 3 diagnostic labels
+        'strengths': strengths,  # 2-3 items, always provided (Spec Section 9.4)
+        'areas_for_improvement': improvements,  # 1-2 items maximum (Spec Section 9.4)
         'fact_breakdown': {
-            'pronunciation_behavior': c1_pronunciation['score'],
-            'functional_control': c2_functions['score'],
-            'discourse_organization': c3_text_type['score'],
-            'lexical_richness': c4_context['score'],
-            'prompt_alignment': c5_alignment['score']
+            'speech_clarity': c1_speech_clarity['score'],
+            'communicative_function': c2_communicative_function['score'],
+            'discourse_organization': c3_discourse_organization['score'],
+            'lexical_use': c4_lexical_use['score']
         },
-        'diagnostic_patterns': diagnostic_patterns,  # CAPA 3 output
+        'subcriteria_breakdown': {
+            'c1_subcriteria': c1_speech_clarity.get('subcriteria', {}),
+            'c2_subcriteria': c2_communicative_function.get('subcriteria', {}),
+            'c3_subcriteria': c3_discourse_organization.get('subcriteria', {}),
+            'c4_subcriteria': c4_lexical_use.get('subcriteria', {})
+        },
         'details': {
-            'c1_details': c1_pronunciation.get('details', {}),
-            'c2_detected': c2_functions.get('detected', {}),
-            'c3_discourse': c3_text_type.get('details', {}),
-            'c4_thematic': c4_context.get('thematic_level', 'unknown'),
-            'c5_fulfillment': c5_alignment.get('details', {})
+            'c1_details': c1_speech_clarity.get('details', {}),
+            'c2_details': c2_communicative_function.get('details', {}),
+            'c3_details': c3_discourse_organization.get('details', {}),
+            'c4_details': c4_lexical_use.get('details', {})
         }
     }
 
 
-def _generate_simple_feedback(score):
-    """CAPA 4 Placeholder - Simple score-based feedback (no ACTFL bands shown to user)
+def _generate_score_explanation(score):
+    """Generate brief score explanation (Spec Section 9.1)
 
-    Per spec: Short feedback based on score, NO level labels visible
+    Returns 1-2 sentence explanation based on score range.
     """
     if score >= 85:
-        return "Excellent work - you communicate clearly and confidently with strong control of Spanish structures."
+        return "Your communication is clear and effective. You successfully express your ideas with minimal listener effort."
     elif score >= 75:
-        return "Good work - you communicate effectively with clear pronunciation and good structural control."
-    elif score >= 60:
-        return "You're making progress - continue practicing to improve fluency, clarity, and grammatical consistency."
+        return "Your message comes through clearly. Some aspects could be refined to improve overall clarity."
+    elif score >= 65:
+        return "You communicate your main ideas, though clarity and organization could be strengthened."
+    elif score >= 55:
+        return "Your message is partially clear. Focusing on key areas will help your communication improve."
     else:
-        return "Keep practicing - focus on forming complete sentences, improving pronunciation clarity, and building vocabulary."
+        return "Your attempt shows effort. With practice in clarity and organization, your communication will strengthen."
 
 
-def _generate_diagnostic_labels(diagnostic_patterns):
-    """CAPA 4 Placeholder - Generate simple diagnostic labels (max 3)
+def _generate_strengths(score, c1, c2, c3, c4, level):
+    """Generate strengths list (Spec Section 9.2)
 
-    Per spec: Only diagnostic labels WITHOUT explanations, coaching, or links
+    Rule 1: Always provide at least 1 strength
+    Rule 2: Maximum 3 strengths
+    Rule 3: Balance strengths based on score
 
     Args:
-        diagnostic_patterns: List from CAPA 3 diagnose_patterns()
+        score: Final score
+        c1, c2, c3, c4: Criterion results
+        level: User proficiency level
 
     Returns:
-        List of strings (diagnostic labels only)
-
-    Example output:
-        [
-            "Rhythm consistency",
-            "Natural pausing"
-        ]
+        List of 1-3 strength strings
     """
-    if not diagnostic_patterns:
-        return ["Continue refining your pronunciation"]
+    strengths = []
 
-    labels = []
-    for pattern in diagnostic_patterns[:3]:  # Max 3
-        # Use pattern name only (no diagnostic message, no explanation)
-        labels.append(pattern['name'])
+    # Speech Clarity strengths
+    if c1['score'] >= 80:
+        if c1.get('details', {}).get('wps_std_dev', 1.0) <= 0.35:
+            strengths.append("Your speech flows naturally and is easy to follow.")
+        else:
+            strengths.append("Your ideas are grouped clearly with effective pauses.")
+    elif c1['score'] >= 70:
+        strengths.append("You maintain steady rhythm throughout your message.")
 
-    return labels
+    # Communicative Function strengths
+    if c2['score'] >= 85:
+        strengths.append("Your communicative goal is clear and well-executed.")
+    elif c2['score'] >= 75:
+        strengths.append("You successfully accomplish what you set out to communicate.")
+
+    # Discourse Organization strengths
+    if c3['score'] >= 80:
+        strengths.append("Your ideas follow a logical order.")
+    elif c3['score'] >= 70:
+        strengths.append("You connect your thoughts effectively.")
+
+    # Lexical Use strengths
+    if c4['score'] >= 80:
+        strengths.append("Your vocabulary supports your message well.")
+    elif c4['score'] >= 70:
+        strengths.append("You use words that clearly express your ideas.")
+
+    # Ensure at least 1 strength (Spec Rule 1)
+    if not strengths:
+        strengths.append("You're making an effort to communicate in Spanish.")
+
+    # Limit to max 3 strengths (Spec Rule 2)
+    return strengths[:3]
+
+
+def _generate_improvements(score, c1, c2, c3, c4, level):
+    """Generate improvements list (Spec Section 9.3)
+
+    Maximum 2 improvements based on lowest-scoring criteria
+
+    Args:
+        score: Final score
+        c1, c2, c3, c4: Criterion results
+        level: User proficiency level
+
+    Returns:
+        List of 1-2 improvement strings
+    """
+    improvements = []
+
+    # Identify lowest-scoring criteria
+    criteria_scores = [
+        ('c1', c1['score']),
+        ('c2', c2['score']),
+        ('c3', c3['score']),
+        ('c4', c4['score'])
+    ]
+    criteria_scores.sort(key=lambda x: x[1])
+
+    # Generate improvements for 2 lowest criteria
+    improvement_count = 0
+    for criterion_name, criterion_score in criteria_scores:
+        if improvement_count >= 2:
+            break
+
+        if criterion_name == 'c1' and criterion_score < 75:
+            # Speech Clarity improvements
+            disruptive_pauses = c1.get('details', {}).get('disruptive_pauses', 0)
+            wps_std_dev = c1.get('details', {}).get('wps_std_dev', 0)
+
+            if disruptive_pauses > 2:
+                improvements.append("Placing pauses between ideas (not within them) would help clarity.")
+                improvement_count += 1
+            elif wps_std_dev > 0.60:
+                improvements.append("Smoothing out rhythm changes would improve flow.")
+                improvement_count += 1
+
+        elif criterion_name == 'c2' and criterion_score < 75:
+            # Communicative Function improvements
+            if level == 'beginner':
+                improvements.append("Practice using present tense to describe yourself and your routine.")
+                improvement_count += 1
+            elif level == 'intermediate':
+                improvements.append("Practice using past tense to narrate completed actions and descriptions.")
+                improvement_count += 1
+            elif level == 'advanced':
+                improvements.append("Use evaluative expressions like 'es importante que' or 'me preocupa que'.")
+                improvement_count += 1
+
+        elif criterion_name == 'c3' and criterion_score < 75:
+            # Discourse Organization improvements
+            total_connectors = c3.get('details', {}).get('total_connectors', 0)
+            if total_connectors < 2:
+                improvements.append("Connect your ideas with words like 'porque', 'pero', 'entonces', 'sin embargo'.")
+                improvement_count += 1
+
+        elif criterion_name == 'c4' and criterion_score < 75:
+            # Lexical Use improvements
+            variety_ratio = c4.get('details', {}).get('variety_ratio', 0)
+            if variety_ratio < 0.60:
+                improvements.append("Building topic-specific vocabulary would add precision.")
+                improvement_count += 1
+
+    # If no specific improvements identified, add a general one
+    if not improvements:
+        improvements.append("Continue refining subtle aspects of pronunciation and discourse organization.")
+
+    return improvements[:2]  # Max 2 improvements
 
 
 def _generate_rubric_feedback(score, level='intermediate'):
