@@ -918,6 +918,12 @@ def evaluate_pronunciation_fluency(transcript, words_data):
 
     return {
         'score': round(c1_score, 1),
+        'subcriteria': {
+            'c1_1_rhythm_stability': round(rhythm_score, 1),
+            'c1_2_flow_continuity': round(flow_score, 1),
+            'c1_3_vowel_duration': round(vowel_score, 1),
+            'c1_4_global_stability': round(stt_confidence_pct, 1)
+        },
         'details': {
             'rhythm_stability': round(rhythm_score, 1),
             'flow_continuity': round(flow_score, 1),
@@ -935,11 +941,11 @@ def evaluate_pronunciation_fluency(transcript, words_data):
 def evaluate_functions(transcript, level='intermediate'):
     """C2: Functional Language Control (25% weight)
 
-    Evaluates communicative intent through:
-    1. Level alignment - Uses expected structures for the task
-    2. Modality (3 layers) - Expresses intention, opinion, evaluation
-    3. Consistency - Sustained use (≥3 instances)
-    4. Functional clarity - Clear communicative purpose
+    Evaluates communicative intent through 4 EXPLICIT subcriteria:
+    - C2.1 Level Adequacy - Uses expected functions for the level
+    - C2.2 Functional Consistency - Function appears ≥3 times coherently
+    - C2.3 Dominant Function - Clear whether describe/narrate/opine/justify
+    - C2.4 Modality (3 layers) - Basic/cognitive/evaluative
 
     Key principle: Subjunctive is a BONUS signal, not a requirement.
     Evaluative modality without perfect subjunctive still counts.
@@ -949,7 +955,7 @@ def evaluate_functions(transcript, level='intermediate'):
         level: Expected level (beginner/intermediate/advanced)
 
     Returns:
-        dict with 'score' (0-100), 'detected', and 'modality_score'
+        dict with 'score' (0-100), 'subcriteria', 'detected', 'modality_detected'
     """
     text_lower = transcript.lower()
     detected = {}
@@ -999,81 +1005,142 @@ def evaluate_functions(transcript, level='intermediate'):
     evaluative_modality = re.findall(MODALITY_LAYERS['evaluative']['patterns'], text_lower)
     modality_detected['evaluative'] = len(evaluative_modality)
 
-    # Calculate modality score (weighted by layer)
-    modality_score = 0
-    if modality_detected['basic'] > 0:
-        modality_score += 30 * MODALITY_LAYERS['basic']['weight']
-    if modality_detected['cognitive'] > 0:
-        modality_score += 30 * MODALITY_LAYERS['cognitive']['weight']
-    if modality_detected['evaluative'] > 0:
-        modality_score += 40 * MODALITY_LAYERS['evaluative']['weight']
+    # ========================================================================
+    # SUBCRITERION C2.1: LEVEL ADEQUACY
+    # Does the speaker use functions expected for their level?
+    # ========================================================================
+    c2_1_level_adequacy = 50  # Base
 
-    # --- CALCULATE BASE SCORE (Level-appropriate structures) ---
-    base_score = 50
-
-    # BEGINNER level expectations
     if level == 'beginner':
-        if detected['present'] >= 3:
-            base_score = 75
-        if modality_detected['basic'] >= 1:
-            base_score = min(95, base_score + 15)
+        # Beginner: Present tense expected
+        if detected['present'] >= 5:
+            c2_1_level_adequacy = 95
+        elif detected['present'] >= 3:
+            c2_1_level_adequacy = 75
+        elif detected['present'] >= 1:
+            c2_1_level_adequacy = 60
+        else:
+            c2_1_level_adequacy = 50
 
-    # INTERMEDIATE level expectations
     elif level == 'intermediate':
-        if detected['preterite'] >= 3 or detected['imperfect'] >= 3:
-            base_score = 75
-        if (detected['preterite'] + detected['imperfect']) >= 5:
-            base_score = 85
-        if modality_detected['cognitive'] >= 1:
-            base_score = min(95, base_score + 10)
+        # Intermediate: Past tense (preterite or imperfect) expected
+        past_total = detected['preterite'] + detected['imperfect']
+        if past_total >= 5:
+            c2_1_level_adequacy = 95
+        elif past_total >= 3:
+            c2_1_level_adequacy = 75
+        elif past_total >= 1:
+            c2_1_level_adequacy = 60
+        else:
+            c2_1_level_adequacy = 50
 
-    # ADVANCED level expectations
     elif level == 'advanced':
-        has_modal = modality_detected['evaluative'] >= 1 or modality_detected['cognitive'] >= 2
+        # Advanced: Complex structures (subjunctive, conditional, or cognitive modality)
+        complex_total = detected['subjunctive'] + detected['conditional']
+        has_cognitive_or_evaluative = modality_detected['cognitive'] >= 1 or modality_detected['evaluative'] >= 1
 
-        if has_modal:
-            base_score = 80  # Modality is critical at advanced level
+        if complex_total >= 2 and has_cognitive_or_evaluative:
+            c2_1_level_adequacy = 95
+        elif complex_total >= 1 or has_cognitive_or_evaluative:
+            c2_1_level_adequacy = 75
+        else:
+            c2_1_level_adequacy = 60
 
-        # Subjunctive/conditional = BONUS (not requirement)
-        if detected['subjunctive'] >= 2 or detected['conditional'] >= 2:
-            base_score = min(100, base_score + 15)
+    # ========================================================================
+    # SUBCRITERION C2.2: FUNCTIONAL CONSISTENCY
+    # Is the same function sustained ≥3 times?
+    # ========================================================================
+    c2_2_functional_consistency = 50  # Base
 
-        # Combination of modality + complex structures = very high
-        if has_modal and (detected['subjunctive'] >= 1 or detected['conditional'] >= 1):
-            base_score = 95
-
-    # --- CONSISTENCY BONUS ---
-    # Reward sustained use (≥3 instances of main function)
-    total_structural_uses = sum([
-        detected['present'], detected['preterite'], detected['imperfect'],
-        detected['future'], detected['subjunctive'], detected['conditional']
+    # Count sustained use of any single function
+    max_single_function = max([
+        detected['present'],
+        detected['preterite'],
+        detected['imperfect'],
+        detected['future'],
+        detected['subjunctive'],
+        detected['conditional']
     ])
 
-    if total_structural_uses >= 8:
-        consistency_bonus = 5
-    elif total_structural_uses >= 5:
-        consistency_bonus = 3
+    if max_single_function >= 5:
+        c2_2_functional_consistency = 95
+    elif max_single_function >= 3:
+        c2_2_functional_consistency = 75
+    elif max_single_function >= 2:
+        c2_2_functional_consistency = 60
     else:
-        consistency_bonus = 0
+        c2_2_functional_consistency = 50
 
-    final_score = min(100, base_score + modality_score + consistency_bonus)
+    # ========================================================================
+    # SUBCRITERION C2.3: DOMINANT FUNCTION
+    # Is it clear if speaker is describing / narrating / opining / justifying?
+    # ========================================================================
+    c2_3_dominant_function = 50  # Base
+
+    # Determine dominant function based on detected structures
+    function_clarity = 'unclear'
+
+    if detected['present'] > detected['preterite'] + detected['imperfect'] and detected['present'] >= 3:
+        function_clarity = 'describe'  # Describing current state
+    elif (detected['preterite'] + detected['imperfect']) >= 3:
+        function_clarity = 'narrate'  # Narrating past events
+    elif modality_detected['cognitive'] >= 2 or modality_detected['evaluative'] >= 1:
+        function_clarity = 'opine'  # Expressing opinions/evaluations
+    elif detected['subjunctive'] >= 2 or detected['conditional'] >= 2:
+        function_clarity = 'justify'  # Justifying with complex modality
+
+    if function_clarity in ['describe', 'narrate', 'opine', 'justify']:
+        c2_3_dominant_function = 90  # Clear dominant function
+    elif function_clarity == 'unclear' and max_single_function >= 2:
+        c2_3_dominant_function = 70  # Some clarity but diffuse
+    else:
+        c2_3_dominant_function = 55  # Confused
+
+    # ========================================================================
+    # SUBCRITERION C2.4: MODALITY (3 LAYERS)
+    # Basic (0.3) / Cognitive (0.6) / Evaluative (1.0)
+    # ========================================================================
+    c2_4_modality = 50  # Base
+
+    modality_points = 0
+
+    if modality_detected['basic'] >= 1:
+        modality_points += 15  # Basic modality present
+    if modality_detected['cognitive'] >= 1:
+        modality_points += 20  # Cognitive modality present
+    if modality_detected['evaluative'] >= 1:
+        modality_points += 25  # Evaluative modality present (highest)
+
+    c2_4_modality = min(100, 50 + modality_points)
+
+    # ========================================================================
+    # CALCULATE C2 FINAL SCORE (average of 4 subcriteria)
+    # ========================================================================
+    c2_final_score = (c2_1_level_adequacy + c2_2_functional_consistency +
+                      c2_3_dominant_function + c2_4_modality) / 4
 
     return {
-        'score': round(final_score, 1),
+        'score': round(c2_final_score, 1),
+        'subcriteria': {
+            'c2_1_level_adequacy': round(c2_1_level_adequacy, 1),
+            'c2_2_functional_consistency': round(c2_2_functional_consistency, 1),
+            'c2_3_dominant_function': round(c2_3_dominant_function, 1),
+            'c2_4_modality': round(c2_4_modality, 1)
+        },
         'detected': detected,
         'modality_detected': modality_detected,
-        'modality_score': round(modality_score, 1)
+        'dominant_function': function_clarity
     }
 
 
 def evaluate_text_type(transcript, words_data=None):
     """C3: Discourse Organization (20% weight)
 
-    Evaluates prosodic discourse structure through:
-    1. Functional sentences - Strategic pauses OR connectors (NOT punctuation)
-    2. Connector use - Types and variety (temporal, causal, adversative)
-    3. Discourse type - Narrative, descriptive, or argumentative
-    4. Cohesion - Ideas connected vs isolated
+    Evaluates prosodic discourse structure through 4 EXPLICIT subcriteria:
+    - C3.1 Sequence - Temporal connectors OR strategic pauses
+    - C3.2 Cohesion - Functional connectors (causal, adversative, additive)
+    - C3.3 Development - Idea length + elaboration
+    - C3.4 Text Type - Matches prompt intent
 
     Key principle: A "functional sentence" can exist without a pause if there's a connector.
     Long fluent discourse is NOT penalized if it maintains semantic coherence.
@@ -1083,7 +1150,7 @@ def evaluate_text_type(transcript, words_data=None):
         words_data: Word timing data (optional, for pause-based analysis)
 
     Returns:
-        dict with 'score' (0-100), 'details', and 'discourse_type'
+        dict with 'score' (0-100), 'subcriteria', 'details'
     """
     words = transcript.split()
     word_count = len(words)
@@ -1105,6 +1172,7 @@ def evaluate_text_type(transcript, words_data=None):
     # Method 1: Use strategic pauses if available
     if words_data and len(words_data) > 0:
         functional_sentences = 1  # Start with 1 (first utterance)
+        strategic_pauses = 0
 
         for i in range(len(words_data) - 1):
             gap = words_data[i+1]['start_time'] - words_data[i]['end_time']
@@ -1116,11 +1184,13 @@ def evaluate_text_type(transcript, words_data=None):
                 strategic_markers = ['entonces', 'luego', 'finalmente', 'además', 'pero', 'porque']
                 if any(marker in current_word for marker in strategic_markers):
                     functional_sentences += 1
+                    strategic_pauses += 1
 
     # Method 2: Fallback - count by connectors
     else:
         # Each connector implies a sentence boundary
         functional_sentences = 1 + (total_connectors if total_connectors > 0 else 0)
+        strategic_pauses = 0
 
     # --- DETECT DISCOURSE TYPE ---
     discourse_type = 'conversational'
@@ -1148,35 +1218,91 @@ def evaluate_text_type(transcript, words_data=None):
     else:
         discourse_type = 'descriptive'
 
-    # --- CALCULATE SCORE ---
-    score = 40  # Base
+    # ========================================================================
+    # SUBCRITERION C3.1: SEQUENCE
+    # Evidence of temporal/logical order via connectors OR strategic pauses
+    # ========================================================================
+    c3_1_sequence = 50  # Base
 
-    # Level 1: Very short (< 15 words)
-    if word_count < 15:
-        score = 50
+    temporal_connectors = connector_counts.get('temporal', 0)
 
-    # Level 2: Simple discourse (15-30 words, few connectors)
-    elif word_count < 30 or total_connectors == 0:
-        score = 60
+    if temporal_connectors >= 3 or (strategic_pauses >= 2 and temporal_connectors >= 1):
+        c3_1_sequence = 95  # Clear sequence
+    elif temporal_connectors >= 2 or strategic_pauses >= 2:
+        c3_1_sequence = 75  # Partial sequence
+    elif temporal_connectors >= 1 or total_connectors >= 2:
+        c3_1_sequence = 65  # Some sequence
+    else:
+        c3_1_sequence = 50  # No sequence
 
-    # Level 3: Connected discourse (30+ words, some connectors)
-    elif word_count >= 30 and total_connectors >= 2:
-        score = 75
+    # ========================================================================
+    # SUBCRITERION C3.2: COHESION
+    # Functional use of connectors (causal, adversative, additive)
+    # ========================================================================
+    c3_2_cohesion = 50  # Base
 
-    # Level 4: Organized discourse (multiple functional sentences + variety)
-    elif functional_sentences >= 3 and connector_variety >= 2:
-        score = 85
+    functional_connector_count = (connector_counts.get('causal', 0) +
+                                  connector_counts.get('adversative', 0) +
+                                  connector_counts.get('additive', 0))
 
-    # Level 5: Academic/Extended discourse (complex connectors + length)
-    elif discourse_type in ['academic', 'argumentative'] and connector_variety >= 3:
-        score = 95
+    if functional_connector_count >= 3 and connector_variety >= 2:
+        c3_2_cohesion = 95  # Functional cohesion
+    elif functional_connector_count >= 2:
+        c3_2_cohesion = 75  # Some cohesion
+    elif functional_connector_count >= 1 or total_connectors >= 2:
+        c3_2_cohesion = 65  # Mechanical cohesion
+    else:
+        c3_2_cohesion = 50  # Absent
 
-    # BONUS: Very well-organized extended discourse
-    if word_count >= 60 and functional_sentences >= 5 and connector_variety >= 3:
-        score = min(100, score + 5)
+    # ========================================================================
+    # SUBCRITERION C3.3: DEVELOPMENT
+    # Ideas are elaborated (not just lists)
+    # ========================================================================
+    c3_3_development = 50  # Base
+
+    # Heuristic: word_count / functional_sentences = average idea length
+    if functional_sentences > 0:
+        avg_idea_length = word_count / functional_sentences
+    else:
+        avg_idea_length = word_count
+
+    if avg_idea_length >= 15 and functional_sentences >= 3:
+        c3_3_development = 95  # Developed ideas
+    elif avg_idea_length >= 10 and functional_sentences >= 2:
+        c3_3_development = 75  # Some development
+    elif avg_idea_length >= 5:
+        c3_3_development = 65  # Limited development
+    else:
+        c3_3_development = 50  # Fragmented (lists)
+
+    # ========================================================================
+    # SUBCRITERION C3.4: TEXT TYPE
+    # Matches expected discourse type for prompt
+    # ========================================================================
+    c3_4_text_type = 50  # Base
+
+    # Appropriate discourse type = high score
+    if discourse_type in ['narrative', 'argumentative', 'academic']:
+        c3_4_text_type = 90  # Appropriate type
+    elif discourse_type == 'descriptive' and word_count >= 30:
+        c3_4_text_type = 75  # Descriptive but extended
+    else:
+        c3_4_text_type = 65  # Conversational/simple
+
+    # ========================================================================
+    # CALCULATE C3 FINAL SCORE (average of 4 subcriteria)
+    # ========================================================================
+    c3_final_score = (c3_1_sequence + c3_2_cohesion +
+                      c3_3_development + c3_4_text_type) / 4
 
     return {
-        'score': round(score, 1),
+        'score': round(c3_final_score, 1),
+        'subcriteria': {
+            'c3_1_sequence': round(c3_1_sequence, 1),
+            'c3_2_cohesion': round(c3_2_cohesion, 1),
+            'c3_3_development': round(c3_3_development, 1),
+            'c3_4_text_type': round(c3_4_text_type, 1)
+        },
         'details': {
             'word_count': word_count,
             'functional_sentences': functional_sentences,
@@ -1191,13 +1317,12 @@ def evaluate_text_type(transcript, words_data=None):
 def evaluate_context(transcript, level='intermediate'):
     """C4: Contextual Lexical Richness (15% weight)
 
-    Evaluates integrated vocabulary use through:
-    1. Variety ratio - Unique words / total words
-    2. Thematic progression - Relative to level (personal/everyday/abstract)
-    3. Academic vocabulary - BONUS signal, not requirement
-    4. Function words - Acceptable repetition (not penalized)
+    Evaluates integrated vocabulary use through 3 EXPLICIT subcriteria:
+    - C4.1 Variety Ratio - Unique content words / total content words (pure metric)
+    - C4.2 Thematic Alignment - Does vocabulary serve the topic?
+    - C4.3 Relative Progression - Personal/everyday/abstract appropriate to level
 
-    Key principle: Progresion is relative to level.
+    Key principle: Progression is relative to level.
     - Beginner: Personal vocabulary = high score
     - Intermediate: Everyday vocabulary = high score
     - Advanced: Abstract vocabulary = high score
@@ -1207,11 +1332,20 @@ def evaluate_context(transcript, level='intermediate'):
         level: Expected level (beginner/intermediate/advanced)
 
     Returns:
-        dict with 'score' (0-100), 'details', and 'thematic_level'
+        dict with 'score' (0-100), 'subcriteria', 'details', 'thematic_level'
     """
     words = transcript.lower().split()
     if not words:
-        return {'score': 50, 'details': {}, 'thematic_level': 'none'}
+        return {
+            'score': 50,
+            'subcriteria': {
+                'c4_1_variety_ratio': 50,
+                'c4_2_thematic_alignment': 50,
+                'c4_3_relative_progression': 50
+            },
+            'details': {},
+            'thematic_level': 'none'
+        }
 
     # --- CALCULATE VARIETY RATIO ---
     # Remove punctuation from words
@@ -1257,56 +1391,90 @@ def evaluate_context(transcript, level='intermediate'):
     else:
         thematic_level = 'basic'
 
-    # --- CALCULATE SCORE (relative to level) ---
-    base_score = 50
+    # ========================================================================
+    # SUBCRITERION C4.1: VARIETY RATIO (Pure Metric)
+    # Unique content words / total content words
+    # ========================================================================
+    c4_1_variety_ratio = 50  # Base
 
-    # BEGINNER level: Personal vocabulary = high score
-    if level == 'beginner':
-        if thematic_level == 'personal' and variety_ratio >= 0.50:
-            base_score = 85
-        elif thematic_level == 'personal':
-            base_score = 75
-        elif variety_ratio >= 0.60:
-            base_score = 70
-        else:
-            base_score = 60
-
-    # INTERMEDIATE level: Everyday vocabulary = high score
-    elif level == 'intermediate':
-        if thematic_level == 'everyday' and variety_ratio >= 0.65:
-            base_score = 85
-        elif thematic_level == 'everyday':
-            base_score = 75
-        elif thematic_level == 'abstract':
-            base_score = 90  # Bonus for going beyond expected
-        elif variety_ratio >= 0.60:
-            base_score = 65
-        else:
-            base_score = 55
-
-    # ADVANCED level: Abstract vocabulary = high score
-    elif level == 'advanced':
-        if thematic_level == 'abstract' and variety_ratio >= 0.70:
-            base_score = 95
-        elif thematic_level == 'abstract':
-            base_score = 85
-        elif thematic_level == 'everyday':
-            base_score = 70  # Not penalized, but not ideal for advanced
-        else:
-            base_score = 60
-
-    # --- BONUS for high variety regardless of level ---
-    if variety_ratio >= 0.80:
-        variety_bonus = 5
-    elif variety_ratio >= 0.75:
-        variety_bonus = 3
+    if variety_ratio >= 0.70:
+        c4_1_variety_ratio = 95  # High variety
+    elif variety_ratio >= 0.60:
+        c4_1_variety_ratio = 75  # Good variety
+    elif variety_ratio >= 0.50:
+        c4_1_variety_ratio = 65  # Moderate variety
     else:
-        variety_bonus = 0
+        c4_1_variety_ratio = 50  # Low variety
 
-    final_score = min(100, base_score + variety_bonus)
+    # ========================================================================
+    # SUBCRITERION C4.2: THEMATIC ALIGNMENT
+    # Does the vocabulary serve the topic? (Integrated vs off-topic)
+    # ========================================================================
+    c4_2_thematic_alignment = 50  # Base
+
+    # Check if vocabulary is coherent with any theme
+    total_thematic_words = personal_count + everyday_count + abstract_count
+
+    if total_thematic_words >= 5 and thematic_level != 'basic':
+        c4_2_thematic_alignment = 95  # Integrated vocabulary
+    elif total_thematic_words >= 3:
+        c4_2_thematic_alignment = 75  # Partial integration
+    elif total_thematic_words >= 1:
+        c4_2_thematic_alignment = 65  # Some thematic words
+    else:
+        c4_2_thematic_alignment = 50  # Off-topic or generic
+
+    # ========================================================================
+    # SUBCRITERION C4.3: RELATIVE PROGRESSION
+    # Is vocabulary level-appropriate?
+    # Personal (beginner) / Everyday (intermediate) / Abstract (advanced)
+    # ========================================================================
+    c4_3_relative_progression = 50  # Base
+
+    if level == 'beginner':
+        # Beginner: Personal vocabulary = high score
+        if thematic_level == 'personal':
+            c4_3_relative_progression = 95  # Perfect match
+        elif thematic_level in ['everyday', 'abstract']:
+            c4_3_relative_progression = 80  # Going beyond (bonus)
+        else:
+            c4_3_relative_progression = 60  # Basic
+
+    elif level == 'intermediate':
+        # Intermediate: Everyday vocabulary = high score
+        if thematic_level == 'everyday':
+            c4_3_relative_progression = 95  # Perfect match
+        elif thematic_level == 'abstract':
+            c4_3_relative_progression = 90  # Going beyond (bonus)
+        elif thematic_level == 'personal':
+            c4_3_relative_progression = 70  # Below expected (not penalized heavily)
+        else:
+            c4_3_relative_progression = 60  # Basic
+
+    elif level == 'advanced':
+        # Advanced: Abstract vocabulary = high score
+        if thematic_level == 'abstract':
+            c4_3_relative_progression = 95  # Perfect match
+        elif thematic_level == 'everyday':
+            c4_3_relative_progression = 70  # Below expected (not ideal)
+        elif thematic_level == 'personal':
+            c4_3_relative_progression = 60  # Well below expected
+        else:
+            c4_3_relative_progression = 55  # Basic
+
+    # ========================================================================
+    # CALCULATE C4 FINAL SCORE (average of 3 subcriteria)
+    # ========================================================================
+    c4_final_score = (c4_1_variety_ratio + c4_2_thematic_alignment +
+                      c4_3_relative_progression) / 3
 
     return {
-        'score': round(final_score, 1),
+        'score': round(c4_final_score, 1),
+        'subcriteria': {
+            'c4_1_variety_ratio': round(c4_1_variety_ratio, 1),
+            'c4_2_thematic_alignment': round(c4_2_thematic_alignment, 1),
+            'c4_3_relative_progression': round(c4_3_relative_progression, 1)
+        },
         'details': {
             'variety_ratio': round(variety_ratio, 2),
             'unique_content_words': len(set(content_words)),
@@ -1519,10 +1687,17 @@ def actfl_fact_assessment(transcription_data, level='intermediate', prompt_type=
             'lexical_richness': c4_context['score'],
             'prompt_alignment': c5_alignment['score']
         },
+        'subcriteria_breakdown': {
+            'c1_subcriteria': c1_pronunciation.get('subcriteria', {}),
+            'c2_subcriteria': c2_functions.get('subcriteria', {}),
+            'c3_subcriteria': c3_text_type.get('subcriteria', {}),
+            'c4_subcriteria': c4_context.get('subcriteria', {})
+        },
         'diagnostic_patterns': diagnostic_patterns,  # CAPA 3 output
         'details': {
             'c1_details': c1_pronunciation.get('details', {}),
             'c2_detected': c2_functions.get('detected', {}),
+            'c2_dominant_function': c2_functions.get('dominant_function', 'unknown'),
             'c3_discourse': c3_text_type.get('details', {}),
             'c4_thematic': c4_context.get('thematic_level', 'unknown'),
             'c5_fulfillment': c5_alignment.get('details', {})
