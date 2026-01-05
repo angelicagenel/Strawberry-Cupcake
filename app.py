@@ -1906,11 +1906,18 @@ def process_audio():
         
         # Check if this is a practice mode assessment
         practice_level = request.form.get('practice_level', None)
-        
+
+        # Get the user's selected proficiency level (beginner/intermediate/advanced)
+        user_level = request.form.get('level', 'intermediate')
+
+        # Validate level parameter
+        if user_level not in ['beginner', 'intermediate', 'advanced']:
+            user_level = 'intermediate'
+
         # Process in memory
         audio_content = file.read()
         logger.info(f"Received audio file of size: {len(audio_content)} bytes")
-        
+
         # Transcribe audio (returns dict with 'transcript' and 'words')
         transcription_data = transcribe_audio(audio_content)
         spoken_text = transcription_data.get('transcript', '')
@@ -1936,14 +1943,14 @@ def process_audio():
         # Calculate assessment based on mode
         if practice_level and practice_level in REFERENCES:
             # Practice mode with reference phrase
-            assessment = assess_practice_phrase(transcription_data, practice_level)
+            assessment = assess_practice_phrase(transcription_data, practice_level, level=user_level)
             corrected_text = REFERENCES[practice_level]  # Use reference as corrected text
-            logger.info(f"Practice mode assessment: level={practice_level}, score={assessment['score']}")
+            logger.info(f"Practice mode assessment: level={user_level}, practice_level={practice_level}, score={assessment['score']}")
         else:
             # Free speech mode
-            assessment = assess_free_speech(transcription_data)
+            assessment = assess_free_speech(transcription_data, level=user_level)
             corrected_text = generate_corrected_text(spoken_text)
-            logger.info(f"Free speech assessment: score={assessment['score']}")
+            logger.info(f"Free speech assessment: level={user_level}, score={assessment['score']}")
 
         # Generate TTS feedback (pass score for determining speaking rate)
         tts_url = generate_tts_feedback(corrected_text, assessment['score'])

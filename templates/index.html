@@ -223,14 +223,6 @@
             padding: 20px;
         }
         
-        .example-text {
-            background-color: white;
-            border-radius: 5px;
-            padding: 15px;
-            margin-top: 10px;
-            border-left: 4px solid var(--color-accent);
-        }
-        
         @keyframes pulse {
             0% { transform: scale(1); }
             50% { transform: scale(1.05); }
@@ -276,27 +268,23 @@
             <div class="card-body">
                 <!-- Prompt Section -->
                 <div class="prompt-section">
-                    <p class="prompt-title">Need inspiration? Select a prompt length:</p>
+                    <p class="prompt-title">Need inspiration? Select a level:</p>
                     <div class="prompt-links">
-                        <a href="#" class="prompt-link" data-level="short">Short Prompt</a>
-                        <a href="#" class="prompt-link" data-level="medium">Medium Prompt</a>
-                        <a href="#" class="prompt-link" data-level="extended">Extended Prompt</a>
+                        <a href="#" class="prompt-link" data-level="beginner">Beginner</a>
+                        <a href="#" class="prompt-link" data-level="intermediate">Intermediate</a>
+                        <a href="#" class="prompt-link" data-level="advanced">Advanced</a>
                     </div>
                 </div>
                 
-                <!-- NEW: Inline Prompt Display -->
+                <!-- Inline Prompt Display -->
                 <div id="promptDisplay" class="card mb-3" style="display: none;">
                     <div class="card-body position-relative">
                         <button type="button" class="btn-close position-absolute top-0 end-0 m-2" aria-label="Close" id="closePromptDisplay"></button>
                         <p><strong id="promptTopicTitle">Topic: Introduce Yourself</strong></p>
-                        <p id="promptInstructions">Talk about yourself in Spanish. Try to include:</p>
-                        <ul id="promptList">
-                            <!-- List items will be added dynamically -->
-                        </ul>
-                        <h5>Example:</h5>
-                        <p class="example-text" id="promptExample">
-                            <!-- Example text will be added dynamically -->
-                        </p>
+                        <p id="promptInstructions">Speak freely in Spanish and introduce yourself.</p>
+                        <p id="promptGuidance">Say what comes naturally to you.</p>
+                        <p id="promptNote" style="margin-top: 10px;"></p>
+                        <p id="promptDuration"><strong>Speak clearly and continuously for 15–60 seconds.</strong></p>
                     </div>
                 </div>
                 
@@ -404,55 +392,45 @@
             const audioPreview = document.getElementById('audioPreview');
             const recordedAudio = document.getElementById('recordedAudio');
             
-            // NEW: Define prompt data structure
+            // PromptRenderer - Single component parameterized by level
             const promptData = {
-                short: {
-                    level: "Short",
+                beginner: {
+                    level: "Beginner",
                     topic: "Topic: Introduce Yourself",
-                    instructions: "Talk about yourself in Spanish. Try to include:",
-                    list: [
-                        "Your name and where you're from",
-                        "Your age and occupation",
-                        "What languages you speak",
-                        "Your hobbies or interests"
-                    ],
-                    example: "Hola, me llamo María y soy de California. Tengo veinticinco años y soy estudiante. Me gusta leer, cocinar, y pasar tiempo con mis amigos."
+                    instructions: "Speak freely in Spanish and introduce yourself.",
+                    guidance: "Say what comes naturally to you.",
+                    note: "There are no required points to include.",
+                    duration: "Speak clearly and continuously for 15–60 seconds."
                 },
-                medium: {
-                    level: "Medium",
+                intermediate: {
+                    level: "Intermediate",
                     topic: "Topic: Describe Your Day",
-                    instructions: "Talk about your typical day or what you did yesterday. Try to include:",
-                    list: [
-                        "Your morning routine",
-                        "Activities you did",
-                        "People you met",
-                        "How you felt"
-                    ],
-                    example: "Ayer me desperté a las siete de la mañana. Primero, tomé un café y desayuné con mi familia. Después, fui a trabajar. Por la tarde, almorcé con mi amigo Juan en un restaurante cerca de la oficina. La comida estaba deliciosa. Regresé a casa a las seis y pasé tiempo con mi familia."
+                    instructions: "Speak freely in Spanish about your day or a recent day.",
+                    guidance: "Tell what happened in a natural way.",
+                    note: "There is no required order or structure.",
+                    duration: "Speak clearly and continuously for 15–60 seconds."
                 },
-                extended: {
-                    level: "Extended",
+                advanced: {
+                    level: "Advanced",
                     topic: "Topic: Opinion on Technology and Education",
-                    instructions: "Share your perspective on how technology influences contemporary education. Address:",
-                    list: [
-                        "Benefits and challenges of technological integration in learning",
-                        "Your personal experience with digital education platforms",
-                        "How you envision education will evolve in the future"
-                    ],
-                    example: "La tecnología ha revolucionado la educación. Por un lado, democratiza el acceso al saber y permite experiencias personalizadas. Los estudiantes pueden aprender a su propio ritmo y acceder a recursos de inmediato. No obstante, también genera desafíos como la dependencia digital, que afecta la concentración y la interacción, y acentúa la brecha socioeconómica. Considero que el futuro debe ser híbrido, integrando los métodos tradicionales con la innovación tecnológica."
+                    instructions: "Speak freely in Spanish about how technology affects education.",
+                    guidance: "Express opinions, concerns, or reactions naturally.",
+                    note: "Try to use expressions of opinion, emotion, or necessity (the kind of expressions that often trigger the subjunctive).",
+                    duration: "Speak clearly and continuously for 15–60 seconds."
                 }
             };
 
-            // NEW: Prompt display handling
+            // Prompt display handling
             const promptDisplay = document.getElementById('promptDisplay');
             const promptTopicTitle = document.getElementById('promptTopicTitle');
             const promptInstructions = document.getElementById('promptInstructions');
-            const promptList = document.getElementById('promptList');
-            const promptExample = document.getElementById('promptExample');
+            const promptGuidance = document.getElementById('promptGuidance');
+            const promptNote = document.getElementById('promptNote');
+            const promptDuration = document.getElementById('promptDuration');
             const closePromptDisplay = document.getElementById('closePromptDisplay');
             const promptLinks = document.querySelectorAll('.prompt-link');
 
-            // NEW: Show prompt when a level is clicked
+            // Show prompt when a level is clicked
             promptLinks.forEach(link => {
                 link.addEventListener('click', function(e) {
                     e.preventDefault();
@@ -460,6 +438,9 @@
 
                     if (promptData[level]) {
                         const data = promptData[level];
+
+                        // Store selected level for assessment
+                        selectedLevel = level;
 
                         // Remove active class from all links
                         promptLinks.forEach(l => l.classList.remove('active'));
@@ -469,16 +450,9 @@
                         // Set content
                         promptTopicTitle.textContent = data.topic;
                         promptInstructions.textContent = data.instructions;
-
-                        // Clear and rebuild list
-                        promptList.innerHTML = '';
-                        data.list.forEach(item => {
-                            const li = document.createElement('li');
-                            li.textContent = item;
-                            promptList.appendChild(li);
-                        });
-
-                        promptExample.innerHTML = data.example.replace(/\n\n/g, '<br><br>');
+                        promptGuidance.textContent = data.guidance;
+                        promptNote.textContent = data.note;
+                        promptDuration.innerHTML = '<strong>' + data.duration + '</strong>';
 
                         // Show the display
                         promptDisplay.style.display = 'block';
@@ -486,7 +460,7 @@
                 });
             });
 
-            // NEW: Close prompt display
+            // Close prompt display
             closePromptDisplay.addEventListener('click', function() {
                 promptDisplay.style.display = 'none';
                 // Remove active class from all links when closing
@@ -500,6 +474,7 @@
             let timerInterval;
             let audioURL = null;
             let selectedAudioFile = null;
+            let selectedLevel = 'intermediate'; // Track selected level (default: intermediate)
 
             // Recording
             recordButton.addEventListener('click', () => {
@@ -666,6 +641,7 @@
 
                 const formData = new FormData();
                 formData.append('file', selectedAudioFile);
+                formData.append('level', selectedLevel); // Send selected level to backend
 
                 fetch('/process-audio', {
                     method: 'POST',
