@@ -1,4 +1,4 @@
-# Spanish Pronunciation Coaching Tool 🍓⋆.°
+# FACT Spanish Speech Performance Check 🍓⋆.°
 
 ## License
 
