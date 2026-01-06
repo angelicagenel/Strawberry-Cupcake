@@ -1763,12 +1763,38 @@ def actfl_fact_assessment(transcription_data, level='intermediate', prompt_type=
     c4_lexical_use = evaluate_lexical_use(transcript, level=level)
 
     # ===== CALCULATE WEIGHTED FINAL SCORE (Spec Section 7.3) =====
-    final_score = (
+    raw_score = (
         c1_speech_clarity['score'] * 0.25 +
         c2_communicative_function['score'] * 0.30 +
         c3_discourse_organization['score'] * 0.20 +
         c4_lexical_use['score'] * 0.25
     )
+
+    # ===== FREE SPEECH ADJUSTMENT =====
+    # Compensates for natural variation in spontaneous speech that automated
+    # systems penalize but human listeners tolerate without effort.
+    #
+    # Justification:
+    # 1. Free speech includes natural pauses, rhythm variations, and reformulations
+    #    that machines penalize but humans filter out automatically
+    # 2. STT confidence measures how well Google understood the audio, not speaker quality
+    # 3. Research shows automated systems are systematically harsher than human raters
+    #    for spontaneous speech due to penalizing natural disfluencies
+    #
+    # This adjustment bridges the gap between machine metrics and human comprehension.
+    stt_confidence = c1_speech_clarity.get('details', {}).get('stt_confidence', 0.75)
+
+    if stt_confidence >= 0.70:
+        # Intelligible speech: +10 points adjustment
+        free_speech_adjustment = 10
+    elif stt_confidence >= 0.50:
+        # Partially intelligible: +5 points adjustment
+        free_speech_adjustment = 5
+    else:
+        # Low intelligibility: no adjustment
+        free_speech_adjustment = 0
+
+    final_score = min(100, raw_score + free_speech_adjustment)
 
     # ===== GENERATE FEEDBACK (Spec Section 9) =====
     feedback_text = _generate_score_explanation(final_score)
@@ -1782,7 +1808,8 @@ def actfl_fact_assessment(transcription_data, level='intermediate', prompt_type=
                 f"C2: {c2_communicative_function['score']}, "
                 f"C3: {c3_discourse_organization['score']}, "
                 f"C4: {c4_lexical_use['score']}, "
-                f"Final: {final_score}")
+                f"Raw: {raw_score:.1f}, Adj: +{free_speech_adjustment}, "
+                f"Final: {final_score:.1f}")
 
     return {
         'score': round(final_score, 1),
