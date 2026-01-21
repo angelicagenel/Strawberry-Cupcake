@@ -62,6 +62,13 @@ app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024
 # Allowed audio file extensions
 ALLOWED_EXTENSIONS = {'wav', 'mp3', 'm4a', 'opus', 'webm', 'ogg'}
 
+# Add X-Robots-Tag header to prevent search engine indexing
+@app.after_request
+def add_security_headers(response):
+    """Add security and robots headers to all responses"""
+    response.headers['X-Robots-Tag'] = 'noindex, nofollow, noarchive'
+    return response
+
 def allowed_file(filename):
     """Check if file extension is allowed"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -2286,7 +2293,8 @@ def determine_pronunciation_profile(score, word_count, recognized_ratio):
     # If we have loaded profile criteria, use the score ranges from there
     if PROFILE_CRITERIA:
         # Adjust score based on performance factors
-        adjusted_score = score
+        # Add 5 points baseline bonus to encourage students
+        adjusted_score = min(100, score + 5)
 
         # Boost score for longer, more complex speech
         if word_count >= 15 and recognized_ratio >= 0.9:
