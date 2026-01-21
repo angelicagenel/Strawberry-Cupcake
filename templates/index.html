@@ -76,7 +76,12 @@
         .btn-record:hover {
             background-color: var(--color-secondary);
         }
-        
+
+        .btn-record:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         .btn-submit {
             background-color: var(--color-teal-dark);
             color: white;
@@ -727,6 +732,9 @@
                     resultContainer.style.display = 'block';
                     resultContainer.scrollIntoView({ behavior: 'smooth' });
 
+                    // Disable Start Recording button until Start New Assessment is clicked
+                    recordButton.disabled = true;
+
                     // Hide the Analyze button ONLY after feedback is displayed
                     submitButton.style.display = 'none';
                 })
@@ -746,6 +754,7 @@
                 recordingStatus.textContent = '';
                 submitButton.disabled = true;
                 submitButton.style.display = 'block';  // Show the button again
+                recordButton.disabled = false;  // Re-enable Start Recording button
                 selectedAudioFile = null;
                 if (audioURL) {
                     URL.revokeObjectURL(audioURL);
