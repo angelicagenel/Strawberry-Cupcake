@@ -7,6 +7,7 @@ import logging
 import datetime
 import re
 import statistics
+import requests
 from flask import Flask, request, render_template, jsonify, send_file, url_for
 from google.cloud import speech
 from google.cloud import storage
@@ -24,6 +25,9 @@ app = Flask(__name__)
 # Configure Cloud Storage - Get bucket name from environment variable
 BUCKET_NAME = os.environ.get('BUCKET_NAME', 'strawberry-cupcake-files')
 storage_client = storage.Client()
+
+# Configure tracking webhook URL
+TRACKING_WEBHOOK_URL = os.environ.get('TRACKING_WEBHOOK_URL', '')
 
 def get_or_create_bucket(bucket_name):
     """Obtiene un bucket existente o crea uno nuevo."""
@@ -2612,6 +2616,10 @@ def process_audio():
         if user_level not in ['beginner', 'intermediate', 'advanced']:
             user_level = 'intermediate'
 
+        # Extract tracking parameters
+        tracking_source = request.form.get('source', 'direct')
+        tracking_cohort = request.form.get('cohort', 'none')
+
         # Process in memory
         audio_content = file.read()
         logger.info(f"Received audio file of size: {len(audio_content)} bytes")
@@ -2672,7 +2680,32 @@ def process_audio():
         if practice_level and 'reference_text' in assessment:
             response["reference_text"] = assessment['reference_text']
             response["reference_similarity"] = assessment.get('reference_similarity')
-        
+
+        # Send tracking data to Google Sheets webhook (non-blocking)
+        if TRACKING_WEBHOOK_URL:
+            try:
+                # Calculate recording duration from transcription timing
+                words_data = transcription_data.get('words', [])
+                duration_seconds = 0
+                if words_data and len(words_data) > 0:
+                    duration_seconds = round(words_data[-1]['end_time'] - words_data[0]['start_time'], 1)
+
+                # Prepare tracking data
+                tracking_data = {
+                    'timestamp': datetime.datetime.now().isoformat(),
+                    'source': tracking_source,
+                    'cohort': tracking_cohort,
+                    'duration_seconds': duration_seconds,
+                    'score': round(assessment['score'], 2)
+                }
+
+                # Send to webhook (with short timeout to avoid blocking user response)
+                requests.post(TRACKING_WEBHOOK_URL, json=tracking_data, timeout=3)
+                logger.info(f"Tracking data sent: source={tracking_source}, cohort={tracking_cohort}, duration={duration_seconds}s, score={assessment['score']}")
+            except Exception as e:
+                # Log error but don't fail the request if tracking fails
+                logger.error(f"Failed to send tracking data to webhook: {str(e)}")
+
         return jsonify(response)
             
     except Exception as e:
