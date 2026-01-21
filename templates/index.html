@@ -512,6 +512,11 @@
             let selectedAudioFile = null;
             let selectedLevel = 'intermediate'; // Track selected level (default: intermediate)
 
+            // Capture URL parameters for tracking
+            const urlParams = new URLSearchParams(window.location.search);
+            const trackingSource = urlParams.get('source') || 'direct';
+            const trackingCohort = urlParams.get('cohort') || 'none';
+
             // Recording
             recordButton.addEventListener('click', () => {
                 if (!recording) {
@@ -678,6 +683,8 @@
                 const formData = new FormData();
                 formData.append('file', selectedAudioFile);
                 formData.append('level', selectedLevel); // Send selected level to backend
+                formData.append('source', trackingSource); // Send tracking source
+                formData.append('cohort', trackingCohort); // Send tracking cohort
 
                 fetch('/process-audio', {
                     method: 'POST',
