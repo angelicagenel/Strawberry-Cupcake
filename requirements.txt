@@ -6,3 +6,4 @@ google-cloud-texttospeech==2.14.1
 fuzzywuzzy==0.18.0
 python-Levenshtein==0.21.1
 google-genai
+requests==2.31.0
