@@ -1077,122 +1077,144 @@ def evaluate_communicative_function(transcript, level='intermediate'):
         r'\b(por|para)\b', text_lower
     ))
 
+    # ===== GATING: MINIMUM STRUCTURE REQUIREMENT =====
+    # ACTFL principle: "No puedes evaluar lo que no existe"
+    # If no grammatical structures detected, cannot evaluate communicative function
+    total_structures_detected = sum(structures_detected.values())
+    function_gating_active = total_structures_detected == 0
+
     # ===== C2.1: TASK FULFILLMENT (30%) =====
     # Does the speaker address the prompt purpose?
     c2_1_task_fulfillment = 50
 
-    if level == 'beginner':
-        # Beginner prompt: "Introduce Yourself" - expect personal info
-        personal_info_markers = structures_detected['presente_ser_estar'] + structures_detected['tener']
-        if personal_info_markers >= 3:
-            c2_1_task_fulfillment = 90
-        elif personal_info_markers >= 2:
-            c2_1_task_fulfillment = 75
-        elif personal_info_markers >= 1:
-            c2_1_task_fulfillment = 60
+    if function_gating_active:
+        # Gating: No structures detected, cannot fulfill task
+        c2_1_task_fulfillment = 35
+    else:
+        if level == 'beginner':
+            # Beginner prompt: "Introduce Yourself" - expect personal info
+            personal_info_markers = structures_detected['presente_ser_estar'] + structures_detected['tener']
+            if personal_info_markers >= 3:
+                c2_1_task_fulfillment = 90
+            elif personal_info_markers >= 2:
+                c2_1_task_fulfillment = 75
+            elif personal_info_markers >= 1:
+                c2_1_task_fulfillment = 60
 
-    elif level == 'intermediate':
-        # Intermediate prompt: "Describe Your Day" - expect past narration
-        past_markers = structures_detected['preterite'] + structures_detected['imperfect']
-        if past_markers >= 5:
-            c2_1_task_fulfillment = 90
-        elif past_markers >= 3:
-            c2_1_task_fulfillment = 75
-        elif past_markers >= 1:
-            c2_1_task_fulfillment = 60
+        elif level == 'intermediate':
+            # Intermediate prompt: "Describe Your Day" - expect past narration
+            past_markers = structures_detected['preterite'] + structures_detected['imperfect']
+            if past_markers >= 5:
+                c2_1_task_fulfillment = 90
+            elif past_markers >= 3:
+                c2_1_task_fulfillment = 75
+            elif past_markers >= 1:
+                c2_1_task_fulfillment = 60
 
-    elif level == 'advanced':
-        # Advanced prompt: "Technology and Education" - expect opinion/evaluation
-        evaluative_markers = structures_detected['subjunctive'] + structures_detected['conditional']
-        has_opinion_phrases = bool(re.search(
-            r'\b(creo que|pienso que|considero que|me parece que|en mi opinión|es importante que|es necesario que|me preocupa que)\b',
-            text_lower
-        ))
-        if has_opinion_phrases and evaluative_markers >= 2:
-            c2_1_task_fulfillment = 95
-        elif has_opinion_phrases and evaluative_markers >= 1:
-            c2_1_task_fulfillment = 85
-        elif has_opinion_phrases:
-            c2_1_task_fulfillment = 70
+        elif level == 'advanced':
+            # Advanced prompt: "Technology and Education" - expect opinion/evaluation
+            evaluative_markers = structures_detected['subjunctive'] + structures_detected['conditional']
+            has_opinion_phrases = bool(re.search(
+                r'\b(creo que|pienso que|considero que|me parece que|en mi opinión|es importante que|es necesario que|me preocupa que)\b',
+                text_lower
+            ))
+            if has_opinion_phrases and evaluative_markers >= 2:
+                c2_1_task_fulfillment = 95
+            elif has_opinion_phrases and evaluative_markers >= 1:
+                c2_1_task_fulfillment = 85
+            elif has_opinion_phrases:
+                c2_1_task_fulfillment = 70
 
     # ===== C2.2: FUNCTIONAL CONTROL (30%) =====
     # Sustained use of intended communicative function
     c2_2_functional_control = 50
 
-    if level == 'beginner':
-        # Control over present tense description
-        total_present = structures_detected['presente_ser_estar'] + structures_detected['presente_regular']
-        if total_present >= 5:
-            c2_2_functional_control = 90
-        elif total_present >= 3:
-            c2_2_functional_control = 75
-        elif total_present >= 2:
-            c2_2_functional_control = 60
+    if function_gating_active:
+        # Gating: No structures detected, cannot demonstrate control
+        c2_2_functional_control = 35
+    else:
+        if level == 'beginner':
+            # Control over present tense description
+            total_present = structures_detected['presente_ser_estar'] + structures_detected['presente_regular']
+            if total_present >= 5:
+                c2_2_functional_control = 90
+            elif total_present >= 3:
+                c2_2_functional_control = 75
+            elif total_present >= 2:
+                c2_2_functional_control = 60
 
-    elif level == 'intermediate':
-        # Control over narration (preterite + imperfect coordination)
-        has_both = structures_detected['preterite'] >= 2 and structures_detected['imperfect'] >= 1
-        total_past = structures_detected['preterite'] + structures_detected['imperfect']
-        if has_both and total_past >= 6:
-            c2_2_functional_control = 95
-        elif total_past >= 4:
-            c2_2_functional_control = 80
-        elif total_past >= 2:
-            c2_2_functional_control = 65
+        elif level == 'intermediate':
+            # Control over narration (preterite + imperfect coordination)
+            has_both = structures_detected['preterite'] >= 2 and structures_detected['imperfect'] >= 1
+            total_past = structures_detected['preterite'] + structures_detected['imperfect']
+            if has_both and total_past >= 6:
+                c2_2_functional_control = 95
+            elif total_past >= 4:
+                c2_2_functional_control = 80
+            elif total_past >= 2:
+                c2_2_functional_control = 65
 
-    elif level == 'advanced':
-        # Control over argumentation (subjunctive + connectors + evaluative language)
-        has_subjunctive = structures_detected['subjunctive'] >= 2
-        has_conditional = structures_detected['conditional'] >= 1
-        complex_structures = has_subjunctive or has_conditional
-        if complex_structures:
-            c2_2_functional_control = 85
-        else:
-            c2_2_functional_control = 65
+        elif level == 'advanced':
+            # Control over argumentation (subjunctive + connectors + evaluative language)
+            has_subjunctive = structures_detected['subjunctive'] >= 2
+            has_conditional = structures_detected['conditional'] >= 1
+            complex_structures = has_subjunctive or has_conditional
+            if complex_structures:
+                c2_2_functional_control = 85
+            else:
+                c2_2_functional_control = 65
 
     # ===== C2.3: FUNCTION RANGE (20%) =====
     # Breadth of communicative actions demonstrated
     c2_3_function_range = 50
 
-    # Count distinct function types used
-    function_types_used = 0
-    if structures_detected['presente_ser_estar'] >= 1: function_types_used += 1
-    if structures_detected['preterite'] >= 1: function_types_used += 1
-    if structures_detected['imperfect'] >= 1: function_types_used += 1
-    if structures_detected['ir_a'] >= 1: function_types_used += 1
-    if structures_detected['gustar'] >= 1: function_types_used += 1
-    if structures_detected['subjunctive'] >= 1: function_types_used += 1
-    if structures_detected['conditional'] >= 1: function_types_used += 1
-    if structures_detected['reflexive'] >= 1: function_types_used += 1
+    if function_gating_active:
+        # Gating: No structures detected, cannot demonstrate range
+        c2_3_function_range = 35
+    else:
+        # Count distinct function types used
+        function_types_used = 0
+        if structures_detected['presente_ser_estar'] >= 1: function_types_used += 1
+        if structures_detected['preterite'] >= 1: function_types_used += 1
+        if structures_detected['imperfect'] >= 1: function_types_used += 1
+        if structures_detected['ir_a'] >= 1: function_types_used += 1
+        if structures_detected['gustar'] >= 1: function_types_used += 1
+        if structures_detected['subjunctive'] >= 1: function_types_used += 1
+        if structures_detected['conditional'] >= 1: function_types_used += 1
+        if structures_detected['reflexive'] >= 1: function_types_used += 1
 
-    # Score based on variety
-    if function_types_used >= 5:
-        c2_3_function_range = 95
-    elif function_types_used >= 4:
-        c2_3_function_range = 85
-    elif function_types_used >= 3:
-        c2_3_function_range = 75
-    elif function_types_used >= 2:
-        c2_3_function_range = 65
+        # Score based on variety
+        if function_types_used >= 5:
+            c2_3_function_range = 95
+        elif function_types_used >= 4:
+            c2_3_function_range = 85
+        elif function_types_used >= 3:
+            c2_3_function_range = 75
+        elif function_types_used >= 2:
+            c2_3_function_range = 65
 
     # ===== C2.4: MEANING PRECISION (20%) =====
     # Intended meaning conveyed without confusion
     c2_4_meaning_precision = 50
 
-    # Check for coherent use of structures (not random)
-    # Higher precision = consistent tense use, appropriate modality
-    word_count = len(transcript.split())
-    structure_density = sum(structures_detected.values()) / max(word_count, 1)
-
-    # Good precision: 0.2-0.4 structures per word (coherent functional language)
-    if 0.2 <= structure_density <= 0.4:
-        c2_4_meaning_precision = 90
-    elif 0.15 <= structure_density <= 0.5:
-        c2_4_meaning_precision = 80
-    elif 0.10 <= structure_density:
-        c2_4_meaning_precision = 70
+    if function_gating_active:
+        # Gating: No structures detected, cannot demonstrate precision
+        c2_4_meaning_precision = 35
     else:
-        c2_4_meaning_precision = 60
+        # Check for coherent use of structures (not random)
+        # Higher precision = consistent tense use, appropriate modality
+        word_count = len(transcript.split())
+        structure_density = sum(structures_detected.values()) / max(word_count, 1)
+
+        # Good precision: 0.2-0.4 structures per word (coherent functional language)
+        if 0.2 <= structure_density <= 0.4:
+            c2_4_meaning_precision = 90
+        elif 0.15 <= structure_density <= 0.5:
+            c2_4_meaning_precision = 80
+        elif 0.10 <= structure_density:
+            c2_4_meaning_precision = 70
+        else:
+            c2_4_meaning_precision = 60
 
     # ===== CALCULATE C2 FINAL SCORE =====
     c2_final_score = (c2_1_task_fulfillment * 0.30 +
@@ -1238,6 +1260,11 @@ def evaluate_discourse_organization(transcript, words_data=None):
     text_lower = transcript.lower()
     words = transcript.split()
     word_count = len(words)
+
+    # ===== GATING: MINIMUM WORD COUNT FOR DISCOURSE EVALUATION =====
+    # ACTFL principle: "No puedes evaluar lo que no existe"
+    # Cannot evaluate discourse organization with very short utterances
+    discourse_gating_active = word_count < 12
 
     # ===== DETECT CONNECTORS BY TYPE (Spec Section 4.4) =====
     # Beginner connectors
@@ -1288,64 +1315,76 @@ def evaluate_discourse_organization(transcript, words_data=None):
     # Ideas follow predictable order (temporal or logical)
     c3_1_logical_sequencing = 50
 
-    temporal_sequencing = connector_counts.get('temporal_sequence', 0) + connector_counts.get('sequence', 0)
-    logical_ordering = connector_counts.get('consequence', 0) + connector_counts.get('purpose', 0)
+    if discourse_gating_active:
+        # Gating: Too short to evaluate sequencing
+        c3_1_logical_sequencing = 30
+    else:
+        temporal_sequencing = connector_counts.get('temporal_sequence', 0) + connector_counts.get('sequence', 0)
+        logical_ordering = connector_counts.get('consequence', 0) + connector_counts.get('purpose', 0)
 
-    total_sequencing = temporal_sequencing + logical_ordering
+        total_sequencing = temporal_sequencing + logical_ordering
 
-    if total_sequencing >= 4:
-        c3_1_logical_sequencing = 95
-    elif total_sequencing >= 3:
-        c3_1_logical_sequencing = 85
-    elif total_sequencing >= 2:
-        c3_1_logical_sequencing = 75
-    elif total_sequencing >= 1:
-        c3_1_logical_sequencing = 65
+        if total_sequencing >= 4:
+            c3_1_logical_sequencing = 95
+        elif total_sequencing >= 3:
+            c3_1_logical_sequencing = 85
+        elif total_sequencing >= 2:
+            c3_1_logical_sequencing = 75
+        elif total_sequencing >= 1:
+            c3_1_logical_sequencing = 65
 
     # ===== C3.2: COHESION (30%) =====
     # Ideas are linked meaningfully with functional connectors
     c3_2_cohesion = 50
 
-    cohesive_connectors = (connector_counts.get('causal', 0) +
-                          connector_counts.get('contrast', 0) +
-                          connector_counts.get('additive', 0) +
-                          connector_counts.get('concession', 0))
+    if discourse_gating_active:
+        # Gating: Too short to evaluate cohesion
+        c3_2_cohesion = 30
+    else:
+        cohesive_connectors = (connector_counts.get('causal', 0) +
+                              connector_counts.get('contrast', 0) +
+                              connector_counts.get('additive', 0) +
+                              connector_counts.get('concession', 0))
 
-    if cohesive_connectors >= 4 and connector_variety >= 3:
-        c3_2_cohesion = 95
-    elif cohesive_connectors >= 3 and connector_variety >= 2:
-        c3_2_cohesion = 85
-    elif cohesive_connectors >= 2:
-        c3_2_cohesion = 75
-    elif cohesive_connectors >= 1:
-        c3_2_cohesion = 65
+        if cohesive_connectors >= 4 and connector_variety >= 3:
+            c3_2_cohesion = 95
+        elif cohesive_connectors >= 3 and connector_variety >= 2:
+            c3_2_cohesion = 85
+        elif cohesive_connectors >= 2:
+            c3_2_cohesion = 75
+        elif cohesive_connectors >= 1:
+            c3_2_cohesion = 65
 
     # ===== C3.3: DEVELOPMENT (20%) =====
     # Ideas expanded beyond simple phrases
     c3_3_development = 50
 
-    # Count functional sentences (estimated by pause patterns or connectors)
-    if words_data and len(words_data) > 0:
-        functional_sentences = 1
-        for i in range(len(words_data) - 1):
-            gap = words_data[i+1]['start_time'] - words_data[i]['end_time']
-            if gap >= 1.5:  # Strategic pause threshold
-                functional_sentences += 1
+    if discourse_gating_active:
+        # Gating: Too short to evaluate idea development
+        c3_3_development = 30
     else:
-        # Fallback: estimate by connectors
-        functional_sentences = max(1, total_connectors + 1)
+        # Count functional sentences (estimated by pause patterns or connectors)
+        if words_data and len(words_data) > 0:
+            functional_sentences = 1
+            for i in range(len(words_data) - 1):
+                gap = words_data[i+1]['start_time'] - words_data[i]['end_time']
+                if gap >= 1.5:  # Strategic pause threshold
+                    functional_sentences += 1
+        else:
+            # Fallback: estimate by connectors
+            functional_sentences = max(1, total_connectors + 1)
 
-    avg_idea_length = word_count / functional_sentences if functional_sentences > 0 else word_count
+        avg_idea_length = word_count / functional_sentences if functional_sentences > 0 else word_count
 
-    # Score based on idea elaboration
-    if avg_idea_length >= 15 and functional_sentences >= 3:
-        c3_3_development = 95
-    elif avg_idea_length >= 10 and functional_sentences >= 2:
-        c3_3_development = 80
-    elif avg_idea_length >= 7:
-        c3_3_development = 70
-    elif avg_idea_length >= 5:
-        c3_3_development = 60
+        # Score based on idea elaboration
+        if avg_idea_length >= 15 and functional_sentences >= 3:
+            c3_3_development = 95
+        elif avg_idea_length >= 10 and functional_sentences >= 2:
+            c3_3_development = 80
+        elif avg_idea_length >= 7:
+            c3_3_development = 70
+        elif avg_idea_length >= 5:
+            c3_3_development = 60
 
     # ===== C3.4: DISCOURSE TYPE ALIGNMENT (20%) =====
     # Structure matches the prompt task type
@@ -1487,12 +1526,19 @@ def evaluate_lexical_use(transcript, level='intermediate'):
                 if keyword in text_lower:
                     topic_keywords_found += 1
 
+    # ===== GATING: MINIMUM WORD COUNT REQUIREMENT =====
+    # ACTFL principle: "No puedes evaluar lo que no existe"
+    # If word count is too low, apply gating to prevent inflated scores
+    word_count = len(words)
+
     # ===== C4.1: LEXICAL FIT (30%) =====
     # Words match the topic (Spec Section 5.5)
     c4_1_lexical_fit = 50
 
-    word_count = len(words)
-    if word_count > 0:
+    if word_count < 10:
+        # Gating: Insufficient words to demonstrate lexical fit
+        c4_1_lexical_fit = 30
+    elif word_count > 0:
         topic_alignment_ratio = topic_keywords_found / word_count
 
         if topic_alignment_ratio >= 0.30:  # 80%+ match (adjusted for shorter transcripts)
@@ -1508,57 +1554,66 @@ def evaluate_lexical_use(transcript, level='intermediate'):
     # Enough vocabulary to express ideas
     c4_2_lexical_sufficiency = 50
 
-    # Measure total keywords vs minimum needed
-    if level == 'beginner':
-        if topic_keywords_found >= 6:
-            c4_2_lexical_sufficiency = 90
-        elif topic_keywords_found >= 4:
-            c4_2_lexical_sufficiency = 75
-        elif topic_keywords_found >= 2:
-            c4_2_lexical_sufficiency = 60
+    if word_count < 10:
+        # Gating: Insufficient words to evaluate sufficiency
+        c4_2_lexical_sufficiency = 25
+    else:
+        # Measure total keywords vs minimum needed
+        if level == 'beginner':
+            if topic_keywords_found >= 6:
+                c4_2_lexical_sufficiency = 90
+            elif topic_keywords_found >= 4:
+                c4_2_lexical_sufficiency = 75
+            elif topic_keywords_found >= 2:
+                c4_2_lexical_sufficiency = 60
 
-    elif level == 'intermediate':
-        if topic_keywords_found >= 8:
-            c4_2_lexical_sufficiency = 90
-        elif topic_keywords_found >= 5:
-            c4_2_lexical_sufficiency = 75
-        elif topic_keywords_found >= 3:
-            c4_2_lexical_sufficiency = 60
+        elif level == 'intermediate':
+            if topic_keywords_found >= 8:
+                c4_2_lexical_sufficiency = 90
+            elif topic_keywords_found >= 5:
+                c4_2_lexical_sufficiency = 75
+            elif topic_keywords_found >= 3:
+                c4_2_lexical_sufficiency = 60
 
-    elif level == 'advanced':
-        if topic_keywords_found >= 10:
-            c4_2_lexical_sufficiency = 95
-        elif topic_keywords_found >= 7:
-            c4_2_lexical_sufficiency = 80
-        elif topic_keywords_found >= 4:
-            c4_2_lexical_sufficiency = 65
+        elif level == 'advanced':
+            if topic_keywords_found >= 10:
+                c4_2_lexical_sufficiency = 95
+            elif topic_keywords_found >= 7:
+                c4_2_lexical_sufficiency = 80
+            elif topic_keywords_found >= 4:
+                c4_2_lexical_sufficiency = 65
 
     # ===== C4.3: LEXICAL VARIETY (20%) =====
     # Avoids excessive repetition
     c4_3_lexical_variety = 50
 
-    # Calculate variety ratio (unique words / total words)
-    clean_words = [re.sub(r'[^\w\s]', '', w) for w in words if w]
-    function_words = ['el', 'la', 'los', 'las', 'un', 'una', 'de', 'del', 'a', 'al',
-                     'en', 'con', 'por', 'para', 'que', 'y', 'o', 'pero', 'es', 'son', 'está', 'están']
-    content_words = [w for w in clean_words if w and w not in function_words]
-
-    if len(content_words) > 0:
-        unique_content = set(content_words)
-        variety_ratio = len(unique_content) / len(content_words)
-
-        if variety_ratio >= 0.75:
-            c4_3_lexical_variety = 95
-        elif variety_ratio >= 0.65:
-            c4_3_lexical_variety = 85
-        elif variety_ratio >= 0.55:
-            c4_3_lexical_variety = 75
-        elif variety_ratio >= 0.45:
-            c4_3_lexical_variety = 65
-        else:
-            c4_3_lexical_variety = 55
+    if word_count < 10:
+        # Gating: Cannot measure variety with <10 words
+        c4_3_lexical_variety = 0
+        variety_ratio = 0
     else:
-        variety_ratio = 0.5
+        # Calculate variety ratio (unique words / total words)
+        clean_words = [re.sub(r'[^\w\s]', '', w) for w in words if w]
+        function_words = ['el', 'la', 'los', 'las', 'un', 'una', 'de', 'del', 'a', 'al',
+                         'en', 'con', 'por', 'para', 'que', 'y', 'o', 'pero', 'es', 'son', 'está', 'están']
+        content_words = [w for w in clean_words if w and w not in function_words]
+
+        if len(content_words) > 0:
+            unique_content = set(content_words)
+            variety_ratio = len(unique_content) / len(content_words)
+
+            if variety_ratio >= 0.75:
+                c4_3_lexical_variety = 95
+            elif variety_ratio >= 0.65:
+                c4_3_lexical_variety = 85
+            elif variety_ratio >= 0.55:
+                c4_3_lexical_variety = 75
+            elif variety_ratio >= 0.45:
+                c4_3_lexical_variety = 65
+            else:
+                c4_3_lexical_variety = 55
+        else:
+            variety_ratio = 0.5
 
     # ===== C4.4: CONCEPTUAL LEVEL (20%) =====
     # Vocabulary appropriate to task complexity
@@ -2457,8 +2512,8 @@ def determine_pronunciation_profile(score, word_count, recognized_ratio):
     # If we have loaded profile criteria, use the score ranges from there
     if PROFILE_CRITERIA:
         # Adjust score based on performance factors
-        # Add 5 points baseline bonus to encourage students
-        adjusted_score = min(100, score + 5)
+        # Baseline +5 bonus removed - scores now reflect actual evidence
+        adjusted_score = score
 
         # Boost score for longer, more complex speech
         if word_count >= 15 and recognized_ratio >= 0.9:
