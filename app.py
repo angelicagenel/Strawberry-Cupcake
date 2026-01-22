@@ -1918,7 +1918,7 @@ def _generate_strengths(score, c1, c2, c3, c4, level):
 
 
 def _generate_improvements(score, c1, c2, c3, c4, level):
-    """Generate improvements list (Spec Section 9.3)
+    """Generate improvements list based on score ranges and lowest-scoring criteria
 
     Maximum 2 improvements based on lowest-scoring criteria
 
@@ -1930,64 +1930,224 @@ def _generate_improvements(score, c1, c2, c3, c4, level):
     Returns:
         List of 1-2 improvement strings
     """
+    import random
+
+    # Score-based feedback pools for each criterion
+    IMPROVEMENT_FEEDBACK = {
+        'c1': {  # Speech Clarity (Pronunciation, Rhythm, Flow)
+            (0, 20): [
+                "Work on recognizing and producing the most common sounds in Spanish. Your ears will get better at hearing the differences with practice.",
+                "Try recording yourself saying individual words and comparing them to native speakers. Small steps build confidence!",
+                "Focus on pronouncing vowel sounds clearly and consistently. Spanish vowels are your building blocks!"
+            ],
+            (21, 40): [
+                "Practice linking short, familiar phrases together. Even simple combinations help build fluency.",
+                "Try to maintain a steady pace when speaking, even if it's slow. Rhythm matters more than speed right now.",
+                "Record yourself and listen back. Notice where you pause or hesitate, then practice those spots."
+            ],
+            (41, 54): [
+                "You're making real progress! Now work on smoothing the transitions between words you already know.",
+                "Pay attention to where native speakers pause for breath. Try to group your words into natural chunks instead of word-by-word.",
+                "Practice asking and answering simple questions. This builds both vocabulary and confidence."
+            ],
+            (55, 64): [
+                "Work on maintaining consistent stress patterns within words. Spanish has predictable stress rules that will help you sound more natural.",
+                "Try shadowing (repeating immediately after) short audio clips from native speakers to improve your rhythm and intonation.",
+                "Focus on connecting simple sentences smoothly. The flow between sentences is just as important as individual words."
+            ],
+            (65, 74): [
+                "Practice using connectors like 'porque' (because), 'cuando' (when), and 'después' (after) to make your speech flow better.",
+                "Focus on controlling your rhythm so it's steady throughout your message, not just in individual words.",
+                "Pay attention to linking words together smoothly. In natural Spanish, words often flow into each other."
+            ],
+            (75, 84): [
+                "Work on reducing repetition and filler words while maintaining natural speech flow.",
+                "Pay attention to intonation patterns that convey emotion or emphasis, not just basic statement vs. question.",
+                "Practice varying your sentence structure for more engaging speech."
+            ],
+            (85, 94): [
+                "Refine subtle aspects of pronunciation like prosody (speech melody) that convey attitude and emotion.",
+                "Work on controlling your speech rate strategically—slowing for emphasis, speeding for less important details.",
+                "Pay attention to regional variations in pronunciation and choose which standard you want to model most closely."
+            ],
+            (95, 100): [
+                "Focus on the most subtle aspects of native-like pronunciation, such as regional intonation patterns and emotional coloring.",
+                "Explore literary and artistic uses of the language to deepen your appreciation of its full expressive potential.",
+                "Practice using sophisticated rhetorical devices like metaphor or parallel structure when appropriate."
+            ]
+        },
+        'c2': {  # Communicative Function (Grammar, Tenses, Structures)
+            (0, 20): [
+                "Focus on building your foundation with basic greetings and self-introductions. Practice saying simple phrases about yourself until they feel natural.",
+                "Start with memorizing a few key phrases you use every day. Repetition is your friend at this stage!",
+                "Practice simple present tense verbs for daily activities. Mastering 'yo soy' and 'yo tengo' is a great start."
+            ],
+            (21, 40): [
+                "Practice forming simple complete sentences using subject-verb-object order.",
+                "Work on using the present tense consistently when talking about your daily routine.",
+                "Try describing things around you using simple adjectives. This expands your vocabulary naturally."
+            ],
+            (41, 54): [
+                "Practice expressing simple ideas in complete sentences, even if they're basic.",
+                "Work on using the present tense consistently to talk about your daily activities and preferences.",
+                "Try explaining simple processes (like making a sandwich) to practice using sequential language naturally."
+            ],
+            (55, 64): [
+                "Practice using the present tense consistently across different subjects (I, you, he/she, we, they).",
+                "Work on asking questions in addition to making statements. Questions help keep conversations flowing.",
+                "Try combining two simple sentences with 'y' (and) or 'pero' (but) for more natural speech."
+            ],
+            (65, 74): [
+                "Practice switching between present and past tense to tell simple stories about what you did yesterday.",
+                "Work on using common irregular verbs in the present tense until they become automatic.",
+                "Try expressing your opinions with 'Me gusta...' and 'Prefiero...' to add personality to your speech."
+            ],
+            (75, 84): [
+                "Practice narrating past events with consistent use of preterite and imperfect tenses. This will make your stories more engaging.",
+                "Work on using the future tense or 'ir a + infinitive' to talk about plans and predictions.",
+                "Try using the subjunctive mood after expressions of desire or doubt to add nuance to your communication."
+            ],
+            (85, 94): [
+                "Refine your ability to express abstract ideas and opinions with supporting details.",
+                "Practice using subjunctive mood consistently when expressing doubt, desire, or hypotheticals.",
+                "Work on constructing complex arguments with multiple supporting points and conclusions."
+            ],
+            (95, 100): [
+                "Continue refining your ability to discuss highly specialized or abstract topics with precision.",
+                "Practice constructing sophisticated arguments with counterarguments and nuanced positions.",
+                "Work on adapting your register (formal vs. informal) smoothly based on context and audience."
+            ]
+        },
+        'c3': {  # Discourse Organization (Connectors, Coherence, Structure)
+            (0, 20): [
+                "Practice saying simple phrases in a logical order, like 'Hello, my name is... I am from...'",
+                "Work on responding to basic questions with appropriate answers, even if they're very short.",
+                "Try memorizing short dialogues to understand how conversations flow naturally."
+            ],
+            (21, 40): [
+                "Practice putting your ideas in a clear order: first introduce yourself, then add details.",
+                "Work on using 'y' (and) to connect related ideas together.",
+                "Try answering 'why' questions with 'porque' (because) to show cause and effect."
+            ],
+            (41, 54): [
+                "Practice organizing your thoughts before speaking. Think: What do I want to say first, second, third?",
+                "Work on using time words like 'primero' (first), 'después' (after), and 'finalmente' (finally).",
+                "Try telling a short story with a beginning, middle, and end."
+            ],
+            (55, 64): [
+                "Practice using basic connectors like 'y' (and), 'pero' (but), 'porque' (because) to link your sentences.",
+                "Work on giving examples to support your main ideas using 'por ejemplo' (for example).",
+                "Try explaining your reasoning step-by-step rather than jumping between unrelated ideas."
+            ],
+            (65, 74): [
+                "Practice using a variety of connectors: 'porque', 'pero', 'entonces', 'también', 'sin embargo'.",
+                "Work on organizing longer responses with a clear beginning, middle, and end.",
+                "Try using transition phrases like 'por otro lado' (on the other hand) to show contrasts."
+            ],
+            (75, 84): [
+                "Practice using sophisticated connectors like 'sin embargo' (nevertheless), 'por lo tanto' (therefore) to show clearer relationships between ideas.",
+                "Work on signaling topic changes explicitly so listeners can follow your train of thought.",
+                "Try adding supporting details and examples to make your main points more convincing."
+            ],
+            (85, 94): [
+                "Practice incorporating more idiomatic expressions and culturally specific references naturally.",
+                "Work on using cohesion devices like pronouns and synonyms to avoid repetition while maintaining clarity.",
+                "Try structuring complex arguments with thesis, supporting evidence, and conclusion."
+            ],
+            (95, 100): [
+                "Continue exposing yourself to diverse registers and specialized discourse structures.",
+                "Practice tailoring your organizational patterns to different audiences and purposes.",
+                "Work on using rhetorical devices strategically to enhance your message's impact."
+            ]
+        },
+        'c4': {  # Lexical Use (Vocabulary Breadth and Precision)
+            (0, 20): [
+                "Build your vocabulary by learning 5 new common words each day. Start with things you see around you.",
+                "Practice the most frequent words in Spanish: numbers, colors, family members, and common objects.",
+                "Use flashcards or a vocabulary app to review new words regularly until they stick."
+            ],
+            (21, 40): [
+                "Practice using adjectives to describe nouns. Start simple: big/small, good/bad, new/old.",
+                "Work on learning vocabulary in categories: foods, places, activities. This makes it easier to remember.",
+                "Try labeling objects around your home with Spanish sticky notes to build everyday vocabulary."
+            ],
+            (41, 54): [
+                "Practice using verbs beyond 'ser' and 'estar'. Learn common action verbs for daily activities.",
+                "Work on building topic-specific vocabulary for things you talk about frequently.",
+                "Try using a Spanish-Spanish dictionary to learn new words through definitions rather than translations."
+            ],
+            (55, 64): [
+                "Practice expressing the same idea in different ways to avoid repeating the same words.",
+                "Work on learning synonyms for common words you use frequently to add variety.",
+                "Try reading simple Spanish texts and noting down new words with example sentences."
+            ],
+            (65, 74): [
+                "Practice using more specific vocabulary rather than general words. Instead of 'cosa', use the precise term.",
+                "Work on learning common idiomatic expressions that native speakers use naturally.",
+                "Try incorporating new vocabulary immediately after learning it, even if it feels awkward at first."
+            ],
+            (75, 84): [
+                "Practice using topic-specific vocabulary with precision rather than general approximations.",
+                "Work on distinguishing between similar words with subtle meaning differences.",
+                "Try learning word families (noun, verb, adjective forms) to expand vocabulary efficiently."
+            ],
+            (85, 94): [
+                "Refine your use of low-frequency but precise vocabulary for specialized topics.",
+                "Work on using collocations (word combinations) that native speakers use naturally.",
+                "Try incorporating more sophisticated vocabulary while maintaining clarity and appropriateness."
+            ],
+            (95, 100): [
+                "Continue expanding your vocabulary in specialized domains relevant to your interests.",
+                "Practice using vocabulary with complete awareness of register, connotation, and context.",
+                "Explore historical, regional, and stylistic variations in vocabulary use."
+            ]
+        }
+    }
+
+    def get_score_range(score_val):
+        """Determine which score range a value falls into"""
+        if score_val <= 20:
+            return (0, 20)
+        elif score_val <= 40:
+            return (21, 40)
+        elif score_val <= 54:
+            return (41, 54)
+        elif score_val <= 64:
+            return (55, 64)
+        elif score_val <= 74:
+            return (65, 74)
+        elif score_val <= 84:
+            return (75, 84)
+        elif score_val <= 94:
+            return (85, 94)
+        else:
+            return (95, 100)
+
     improvements = []
 
     # Identify lowest-scoring criteria
     criteria_scores = [
-        ('c1', c1['score']),
-        ('c2', c2['score']),
-        ('c3', c3['score']),
-        ('c4', c4['score'])
+        ('c1', c1['score'], c1),
+        ('c2', c2['score'], c2),
+        ('c3', c3['score'], c3),
+        ('c4', c4['score'], c4)
     ]
     criteria_scores.sort(key=lambda x: x[1])
 
     # Generate improvements for 2 lowest criteria
-    improvement_count = 0
-    for criterion_name, criterion_score in criteria_scores:
-        if improvement_count >= 2:
-            break
+    for criterion_name, criterion_score, criterion_data in criteria_scores[:2]:
+        score_range = get_score_range(criterion_score)
 
-        if criterion_name == 'c1' and criterion_score < 75:
-            # Speech Clarity improvements
-            disruptive_pauses = c1.get('details', {}).get('disruptive_pauses', 0)
-            wps_std_dev = c1.get('details', {}).get('wps_std_dev', 0)
+        if criterion_name in IMPROVEMENT_FEEDBACK and score_range in IMPROVEMENT_FEEDBACK[criterion_name]:
+            feedback_options = IMPROVEMENT_FEEDBACK[criterion_name][score_range]
+            if feedback_options:
+                # Randomly select one feedback from the options for variety
+                selected_feedback = random.choice(feedback_options)
+                improvements.append(selected_feedback)
 
-            if disruptive_pauses > 2:
-                improvements.append("Placing pauses between ideas (not within them) would help clarity.")
-                improvement_count += 1
-            elif wps_std_dev > 0.60:
-                improvements.append("Smoothing out rhythm changes would improve flow.")
-                improvement_count += 1
-
-        elif criterion_name == 'c2' and criterion_score < 75:
-            # Communicative Function improvements
-            if level == 'beginner':
-                improvements.append("Practice using present tense to describe yourself and your routine.")
-                improvement_count += 1
-            elif level == 'intermediate':
-                improvements.append("Practice using past tense to narrate completed actions and descriptions.")
-                improvement_count += 1
-            elif level == 'advanced':
-                improvements.append("Use evaluative expressions like 'es importante que' or 'me preocupa que'.")
-                improvement_count += 1
-
-        elif criterion_name == 'c3' and criterion_score < 75:
-            # Discourse Organization improvements
-            total_connectors = c3.get('details', {}).get('total_connectors', 0)
-            if total_connectors < 2:
-                improvements.append("Connect your ideas with words like 'porque', 'pero', 'entonces', 'sin embargo'.")
-                improvement_count += 1
-
-        elif criterion_name == 'c4' and criterion_score < 75:
-            # Lexical Use improvements
-            variety_ratio = c4.get('details', {}).get('variety_ratio', 0)
-            if variety_ratio < 0.60:
-                improvements.append("Building topic-specific vocabulary would add precision.")
-                improvement_count += 1
-
-    # If no specific improvements identified, add a general one
+    # Fallback if somehow no improvements were generated
     if not improvements:
-        improvements.append("Continue refining subtle aspects of pronunciation and discourse organization.")
+        improvements.append("Continue practicing regularly. Consistent exposure and use of Spanish will help you improve across all areas.")
 
     return improvements[:2]  # Max 2 improvements
 
