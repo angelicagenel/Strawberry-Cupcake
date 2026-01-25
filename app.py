@@ -772,7 +772,6 @@ def evaluate_communicative_function(transcript, level='intermediate'):
         dict with 'score' (0-100), 'subcriteria', 'details', 'can_dos_detected'
     """
     text_lower = transcript.lower()
-    can_dos_detected = []
     structures_detected = {}
 
     # ===== DETECT GRAMMATICAL STRUCTURES (Evidence of Function) =====
@@ -1013,8 +1012,7 @@ def evaluate_communicative_function(transcript, level='intermediate'):
             'structures_detected': structures_detected,
             'function_types_used': function_types_used if 'function_types_used' in locals() else 0,
             'structure_density': round(structure_density, 3) if 'structure_density' in locals() else 0
-        },
-        'can_dos_detected': can_dos_detected
+        }
     }
 
 
@@ -1463,105 +1461,6 @@ def evaluate_lexical_use(transcript, level='intermediate'):
             'unique_content_words': len(set(content_words)) if content_words else 0,
             'total_content_words': len(content_words) if content_words else 0,
             'thematic_level': thematic_level if 'thematic_level' in locals() else 'unknown'
-        }
-    }
-
-
-def evaluate_prompt_alignment(transcript, c1_score, c2_score, c3_score, c4_score, prompt_type='free_speech'):
-    """C5: Prompt Alignment (10% weight)
-
-    Evaluates whether the student answered what was asked through:
-    1. Checklist fulfillment - Covered expected points
-    2. Global clarity - Average of C1-C4
-
-    Key principle: Does NOT penalize creativity, only verifies minimal functional coverage.
-
-    Args:
-        transcript: Full transcribed text
-        c1_score, c2_score, c3_score, c4_score: Scores from other criteria
-        prompt_type: Type of prompt (free_speech or prompt-specific)
-
-    Returns:
-        dict with 'score' (0-100), 'details', and 'fulfillment_pct'
-    """
-    text_lower = transcript.lower()
-
-    # --- CALCULATE GLOBAL CLARITY (average C1-C4) ---
-    global_clarity = (c1_score + c2_score + c3_score + c4_score) / 4
-
-    # --- CHECK PROMPT FULFILLMENT ---
-    fulfillment_score = 85  # Default for free speech (no strict checklist)
-
-    # For specific prompts, check if key elements are present
-    if prompt_type == 'introduce_yourself':
-        checklist_items = {
-            'name_origin': any(marker in text_lower for marker in ['llamo', 'nombre', 'soy de', 'vengo de']),
-            'age_occupation': any(marker in text_lower for marker in ['años', 'tengo', 'estudiante', 'trabajo']),
-            'languages': any(marker in text_lower for marker in ['hablo', 'español', 'inglés', 'idioma']),
-            'hobbies': any(marker in text_lower for marker in ['gusta', 'me encanta', 'interesa', 'hobby'])
-        }
-        covered = sum(1 for v in checklist_items.values() if v)
-        fulfillment_pct = (covered / len(checklist_items)) * 100
-
-        if fulfillment_pct == 100:
-            fulfillment_score = 95
-        elif fulfillment_pct >= 75:
-            fulfillment_score = 85
-        elif fulfillment_pct >= 50:
-            fulfillment_score = 70
-        else:
-            fulfillment_score = 55
-
-    elif prompt_type == 'describe_your_day':
-        checklist_items = {
-            'wake_time': any(marker in text_lower for marker in ['desperté', 'me levanté', 'hora', 'mañana']),
-            'activities': any(marker in text_lower for marker in ['fui', 'hice', 'trabajé', 'comí', 'estudié']),
-            'met_people': any(marker in text_lower for marker in ['amigo', 'familia', 'colega', 'hablé con', 'vi a']),
-            'how_felt': any(marker in text_lower for marker in ['estaba', 'me sentí', 'contento', 'cansado', 'feliz'])
-        }
-        covered = sum(1 for v in checklist_items.values() if v)
-        fulfillment_pct = (covered / len(checklist_items)) * 100
-
-        if fulfillment_pct == 100:
-            fulfillment_score = 95
-        elif fulfillment_pct >= 75:
-            fulfillment_score = 85
-        elif fulfillment_pct >= 50:
-            fulfillment_score = 70
-        else:
-            fulfillment_score = 55
-
-    elif prompt_type == 'opinion_technology_education':
-        checklist_items = {
-            'positive_aspect': any(marker in text_lower for marker in ['importante', 'positivo', 'beneficio', 'útil', 'permite']),
-            'concern': any(marker in text_lower for marker in ['preocupa', 'problema', 'desafío', 'dificultad', 'sin embargo']),
-            'personal_experience': any(marker in text_lower for marker in ['mi experiencia', 'he usado', 'he aprendido', 'en mi caso']),
-            'future_idea': any(marker in text_lower for marker in ['futuro', 'debería', 'necesario que', 'espero que', 'será'])
-        }
-        covered = sum(1 for v in checklist_items.values() if v)
-        fulfillment_pct = (covered / len(checklist_items)) * 100
-
-        if fulfillment_pct == 100:
-            fulfillment_score = 95
-        elif fulfillment_pct >= 75:
-            fulfillment_score = 85
-        elif fulfillment_pct >= 50:
-            fulfillment_score = 70
-        else:
-            fulfillment_score = 55
-    else:
-        fulfillment_pct = 100  # Free speech, no specific requirements
-
-    # --- CALCULATE C5 SCORE ---
-    # Average of fulfillment and global clarity
-    c5_score = (fulfillment_score + global_clarity) / 2
-
-    return {
-        'score': round(c5_score, 1),
-        'details': {
-            'fulfillment': round(fulfillment_score, 1),
-            'global_clarity': round(global_clarity, 1),
-            'fulfillment_pct': round(fulfillment_pct, 1) if prompt_type != 'free_speech' else 100
         }
     }
 
