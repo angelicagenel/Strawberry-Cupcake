@@ -107,6 +107,39 @@
             background-color: var(--color-teal);
         }
         
+        /* Views container for page transitions */
+        .views-container {
+            position: relative;
+            min-height: 350px;
+        }
+
+        .view {
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.4s ease, transform 0.4s ease;
+            transform: translateX(30px);
+            pointer-events: none;
+        }
+
+        .view.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(0);
+            pointer-events: auto;
+        }
+
+        /* Recording view exits to the left */
+        .view-record:not(.active) {
+            transform: translateX(-30px);
+        }
+
+        /* Results view - now inside the views container */
+        .view-results {
+            padding: clamp(12px, 3vw, 20px);
+            border-radius: 5px;
+            background-color: var(--color-bg-light);
+        }
+
         .result-container {
             margin-top: clamp(15px, 3vw, 30px);
             padding: clamp(12px, 3vw, 20px);
@@ -379,113 +412,122 @@
             <p class="lead mb-0"><em>A snapshot of how clearly and effectively you communicate in spoken Spanish.</em></p>
         </div>
 
-        <div class="card mb-4">
-            <div class="card-body">
-                <!-- Instructions -->
-                <p class="instructions-text">Record a short sample of your spoken Spanish (<strong>15–60 seconds</strong>) to receive feedback on clarity, communication, and speech flow.</p>
+        <!-- Views Container - Only this section transitions -->
+        <div class="views-container">
 
-                <!-- Prompt Section -->
-                <div class="prompt-section">
-                    <p class="prompt-title">Need inspiration? Select a level:</p>
-                    <div class="prompt-links">
-                        <a href="#" class="prompt-link" data-level="beginner">Beginner</a>
-                        <a href="#" class="prompt-link" data-level="intermediate">Intermediate</a>
-                        <a href="#" class="prompt-link" data-level="advanced">Advanced</a>
-                    </div>
-                </div>
-                
-                <!-- Inline Prompt Display -->
-                <div id="promptDisplay" class="card mb-3" style="display: none;">
-                    <div class="card-body position-relative">
-                        <button type="button" class="btn-close position-absolute top-0 end-0 m-2" aria-label="Close" id="closePromptDisplay"></button>
-                        <p><strong id="promptTopicTitle">Topic: Introduce Yourself</strong></p>
-                        <p id="promptInstructions">Speak freely in Spanish.</p>
-                        <p style="margin-top: 10px; margin-bottom: 5px;"><strong>Guidance (what to include):</strong></p>
-                        <ul id="promptGuidanceBullets" style="margin-bottom: 10px;">
-                            <!-- Bullets added dynamically -->
-                        </ul>
-                        <p id="promptReminder" style="font-style: italic; color: #666;"></p>
-                        <p id="promptDuration"><strong>Time: 15–60 seconds</strong></p>
-                    </div>
-                </div>
-                
-                <div class="tab-content">
-                    <div class="tab-pane fade show active" id="record">
-                        <div class="text-center">
-                            <button id="recordButton" class="btn btn-record">
-                                <i class="bi bi-mic"></i> Start Recording
-                            </button>
-                            <p id="recordingStatus" class="mt-2"></p>
-                            <div id="recordingTimer" class="mt-2" style="display: none;">00:00</div>
+            <!-- View 1: Recording -->
+            <div id="viewRecord" class="view view-record active">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <!-- Instructions -->
+                        <p class="instructions-text">Record a short sample of your spoken Spanish (<strong>15–60 seconds</strong>) to receive feedback on clarity, communication, and speech flow.</p>
+
+                        <!-- Prompt Section -->
+                        <div class="prompt-section">
+                            <p class="prompt-title">Need inspiration? Select a level:</p>
+                            <div class="prompt-links">
+                                <a href="#" class="prompt-link" data-level="beginner">Beginner</a>
+                                <a href="#" class="prompt-link" data-level="intermediate">Intermediate</a>
+                                <a href="#" class="prompt-link" data-level="advanced">Advanced</a>
+                            </div>
                         </div>
-                        <div id="audioPreview" class="mt-3" style="display: none;">
-                            <h6>Preview:</h6>
-                            <audio id="recordedAudio" controls class="w-100"></audio>
+
+                        <!-- Inline Prompt Display -->
+                        <div id="promptDisplay" class="card mb-3" style="display: none;">
+                            <div class="card-body position-relative">
+                                <button type="button" class="btn-close position-absolute top-0 end-0 m-2" aria-label="Close" id="closePromptDisplay"></button>
+                                <p><strong id="promptTopicTitle">Topic: Introduce Yourself</strong></p>
+                                <p id="promptInstructions">Speak freely in Spanish.</p>
+                                <p style="margin-top: 10px; margin-bottom: 5px;"><strong>Guidance (what to include):</strong></p>
+                                <ul id="promptGuidanceBullets" style="margin-bottom: 10px;">
+                                    <!-- Bullets added dynamically -->
+                                </ul>
+                                <p id="promptReminder" style="font-style: italic; color: #666;"></p>
+                                <p id="promptDuration"><strong>Time: 15–60 seconds</strong></p>
+                            </div>
+                        </div>
+
+                        <div class="tab-content">
+                            <div class="tab-pane fade show active" id="record">
+                                <div class="text-center">
+                                    <button id="recordButton" class="btn btn-record">
+                                        <i class="bi bi-mic"></i> Start Recording
+                                    </button>
+                                    <p id="recordingStatus" class="mt-2"></p>
+                                    <div id="recordingTimer" class="mt-2" style="display: none;">00:00</div>
+                                </div>
+                                <div id="audioPreview" class="mt-3" style="display: none;">
+                                    <h6>Preview:</h6>
+                                    <audio id="recordedAudio" controls class="w-100"></audio>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <div class="d-grid gap-2">
-            <button id="submitButton" class="btn btn-submit" disabled style="display: none;">Analyze Pronunciation</button>
-        </div>
-
-        <div id="loadingIndicator" class="text-center my-4" style="display: none;">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
-            </div>
-            <p>Analyzing your pronunciation... Please wait.</p>
-        </div>
-
-        <div id="resultContainer" class="result-container">
-            <h3 class="text-center mb-4">Pronunciation Snapshot</h3>
-            <div id="scoreContainer">
-                <div class="level-display"><span id="profileDescription"></span></div>
-                <div class="score-meter">
-                    <div class="score-fill" id="scoreFill" style="width: 0%;">Estimated Clarity: 0%</div>
+                <div class="d-grid gap-2">
+                    <button id="submitButton" class="btn btn-submit" disabled>Analyze Pronunciation</button>
                 </div>
-            </div>
-            
-            <div class="card mb-3">
-                <div class="card-header">
-                    <h5 class="mb-0">What We Heard</h5>
-                </div>
-                <div class="card-body">
-                    <p id="transcribedText" class="mb-0"></p>
+
+                <div id="loadingIndicator" class="text-center my-4" style="display: none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p>Analyzing your pronunciation... Please wait.</p>
                 </div>
             </div>
 
-            <div class="card mb-3">
-                <div class="card-header">
-                    <h5 class="mb-0">Feedback</h5>
+            <!-- View 2: Results -->
+            <div id="viewResults" class="view view-results">
+                <h3 class="text-center mb-4">Pronunciation Snapshot</h3>
+                <div id="scoreContainer">
+                    <div class="level-display"><span id="profileDescription"></span></div>
+                    <div class="score-meter">
+                        <div class="score-fill" id="scoreFill" style="width: 0%;">Estimated Clarity: 0%</div>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <p id="feedbackText" class="mb-2"></p>
 
-                    <h6 class="mt-4">Strengths:</h6>
-                    <ul id="strengthsList"></ul>
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h5 class="mb-0">What We Heard</h5>
+                    </div>
+                    <div class="card-body">
+                        <p id="transcribedText" class="mb-0"></p>
+                    </div>
+                </div>
 
-                    <h6 class="mt-3">Where to Focus Next:</h6>
-                    <ul id="improvementsList"></ul>
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h5 class="mb-0">Feedback</h5>
+                    </div>
+                    <div class="card-body">
+                        <p id="feedbackText" class="mb-2"></p>
+
+                        <h6 class="mt-4">Strengths:</h6>
+                        <ul id="strengthsList"></ul>
+
+                        <h6 class="mt-3">Where to Focus Next:</h6>
+                        <ul id="improvementsList"></ul>
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h5 class="mb-0">Automated Pronunciation Example</h5>
+                    </div>
+                    <div class="card-body">
+                        <audio id="ttsAudio" controls class="w-100">
+                            <source src="" type="audio/mp3">
+                            Your browser does not support audio playback.
+                        </audio>
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button id="newRecordingButton" class="btn btn-submit">Start New Assessment</button>
                 </div>
             </div>
 
-            <div class="card mb-3">
-                <div class="card-header">
-                    <h5 class="mb-0">Automated Pronunciation Example</h5>
-                </div>
-                <div class="card-body">
-                    <audio id="ttsAudio" controls class="w-100">
-                        <source src="" type="audio/mp3">
-                        Your browser does not support audio playback.
-                    </audio>
-                </div>
-            </div>
-            
-            <div class="d-grid gap-2">
-                <button id="newRecordingButton" class="btn btn-submit">Start New Assessment</button>
-            </div>
         </div>
     </div>
 
@@ -501,7 +543,6 @@
             const submitButton = document.getElementById('submitButton');
             const recordingStatus = document.getElementById('recordingStatus');
             const recordingTimer = document.getElementById('recordingTimer');
-            const resultContainer = document.getElementById('resultContainer');
             const profileDescription = document.getElementById('profileDescription');
             const scoreFill = document.getElementById('scoreFill');
             const transcribedText = document.getElementById('transcribedText');
@@ -513,6 +554,21 @@
             const loadingIndicator = document.getElementById('loadingIndicator');
             const audioPreview = document.getElementById('audioPreview');
             const recordedAudio = document.getElementById('recordedAudio');
+
+            // View switching elements
+            const viewRecord = document.getElementById('viewRecord');
+            const viewResults = document.getElementById('viewResults');
+
+            // Function to switch between views with transition
+            function switchToView(viewName) {
+                if (viewName === 'results') {
+                    viewRecord.classList.remove('active');
+                    viewResults.classList.add('active');
+                } else {
+                    viewResults.classList.remove('active');
+                    viewRecord.classList.add('active');
+                }
+            }
             
             // PromptRenderer - Single component parameterized by level
             // Per CAPA 1 spec: prompts provide guidance bullets, NOT fixed scripts
@@ -638,8 +694,8 @@
             
             async function startRecording() {
                 try {
-                    // Clear previous results when starting a new recording
-                    resultContainer.style.display = 'none';
+                    // Ensure we're in record view
+                    switchToView('record');
                     recordingStatus.textContent = '';
                     audioPreview.style.display = 'none';
                     submitButton.disabled = true;
@@ -788,7 +844,6 @@
                     return;
                 }
                 loadingIndicator.style.display = 'block';
-                resultContainer.style.display = 'none';
 
                 const formData = new FormData();
                 formData.append('file', selectedAudioFile);
@@ -806,7 +861,6 @@
                     if (data.error) {
                         // Reset UI state to allow retry
                         submitButton.disabled = false;
-                        submitButton.style.display = 'block';
                         alert('Error: ' + data.error);
                         return;
                     }
@@ -845,32 +899,26 @@
                         improvementsList.appendChild(li);
                     });
 
-                    // Display the results first
-                    resultContainer.style.display = 'block';
-                    resultContainer.scrollIntoView({ behavior: 'smooth' });
+                    // Switch to results view with transition
+                    switchToView('results');
 
                     // Disable Start Recording button until Start New Assessment is clicked
                     recordButton.disabled = true;
-
-                    // Hide the Analyze button ONLY after feedback is displayed
-                    submitButton.style.display = 'none';
                 })
                 .catch(error => {
                     loadingIndicator.style.display = 'none';
                     // Reset UI state to allow retry
                     submitButton.disabled = false;
-                    submitButton.style.display = 'block';
                     alert('Server error: ' + error);
                 });
             });
 
-            // New recording
+            // New recording - switch back to record view
             newRecordingButton.addEventListener('click', () => {
-                resultContainer.style.display = 'none';
+                switchToView('record');
                 audioPreview.style.display = 'none';
                 recordingStatus.textContent = '';
                 submitButton.disabled = true;
-                submitButton.style.display = 'block';  // Show the button again
                 recordButton.disabled = false;  // Re-enable Start Recording button
                 selectedAudioFile = null;
                 if (audioURL) {
