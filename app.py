@@ -121,39 +121,6 @@ def allowed_file(filename):
     """Check if file extension is allowed"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# Load Spanish Dictionary for pronunciation assessment
-def load_dictionary():
-    """Load Spanish dictionary from either cloud storage or local file"""
-    try:
-        # First try to load from local file
-        try:
-            with open("es_50k.txt", "r", encoding="utf-8") as f:
-                words = [line.strip().split()[0].lower() for line in f if line.strip()]
-                return set(words)
-        except FileNotFoundError:
-            # If local file not found, try to load from Cloud Storage
-            if bucket:
-                blob = bucket.blob('es_50k.txt')
-                try:
-                    if blob.exists():
-                        content = blob.download_as_string().decode('utf-8')
-                        words = [line.strip().split()[0].lower() for line in content.splitlines() if line.strip()]
-                        return set(words)
-                except exceptions.NotFound:
-                    logger.warning(f"Dictionary file not found in bucket {BUCKET_NAME}")
-            # Fallback to a small built-in dictionary
-            logger.warning("Could not load dictionary file. Using minimal built-in dictionary.")
-            return set([
-                "hola", "como", "estás", "bien", "gracias", "adios", "buenos", "días", 
-                "hasta", "luego", "mañana", "tarde", "noche", "por", "favor", "de", "nada",
-                "sí", "no", "tal", "vez", "quizás", "casa", "coche", "trabajo", "escuela",
-                "universidad", "restaurante", "tienda", "mercado", "parque", "playa", "montaña",
-                "emergencia", "calma", "siga", "instrucciones", "seguridad", "caso"
-            ])
-    except Exception as e:
-        logger.error(f"Error loading dictionary: {e}")
-        return set()
-
 # Load reference phrases for assessment and practice
 def load_references():
     """Load reference phrases from file or provide defaults"""
@@ -184,10 +151,8 @@ def load_references():
             "extended": "La educación es fundamental para el desarrollo de la sociedad."
         }
 
-# Initialize Spanish dictionary and references
-SPANISH_DICT = load_dictionary()
+# Initialize references
 REFERENCES = load_references()
-logger.info(f"Dictionary loaded with {len(SPANISH_DICT)} words")
 
 def transcribe_audio(audio_content):
     """Transcribe Spanish audio using Google Cloud Speech-to-Text with support for up to 2 minutes
@@ -769,7 +734,7 @@ def evaluate_communicative_function(transcript, level='intermediate'):
     Formula: C2 = (C2.1 × 0.30) + (C2.2 × 0.30) + (C2.3 × 0.20) + (C2.4 × 0.20)
 
     Returns:
-        dict with 'score' (0-100), 'subcriteria', 'details', 'can_dos_detected'
+        dict with 'score' (0-100), 'subcriteria', 'details'
     """
     text_lower = transcript.lower()
     structures_detected = {}
@@ -2093,8 +2058,7 @@ def health():
     return jsonify({
         "status": "ok",
         "bucket": bucket_status,
-        "bucket_name": BUCKET_NAME,
-        "dictionary_size": len(SPANISH_DICT)
+        "bucket_name": BUCKET_NAME
     })
 
 @app.route('/process-audio', methods=['POST'])
