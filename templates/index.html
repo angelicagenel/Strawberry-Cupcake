@@ -413,7 +413,7 @@
         </div>
 
         <!-- Views Container - Only this section transitions -->
-        <div class="views-container">
+        <div class="views-container" role="main" aria-label="Speech assessment area">
 
             <!-- View 1: Recording -->
             <div id="viewRecord" class="view view-record active">
@@ -450,10 +450,10 @@
                         <div class="tab-content">
                             <div class="tab-pane fade show active" id="record">
                                 <div class="text-center">
-                                    <button id="recordButton" class="btn btn-record">
-                                        <i class="bi bi-mic"></i> Start Recording
+                                    <button id="recordButton" class="btn btn-record" aria-label="Start recording your speech">
+                                        <i class="bi bi-mic" aria-hidden="true"></i> Start Recording
                                     </button>
-                                    <p id="recordingStatus" class="mt-2"></p>
+                                    <p id="recordingStatus" class="mt-2" role="status" aria-live="polite"></p>
                                     <div id="recordingTimer" class="mt-2" style="display: none;">00:00</div>
                                 </div>
                                 <div id="audioPreview" class="mt-3" style="display: none;">
@@ -466,11 +466,11 @@
                 </div>
 
                 <div class="d-grid gap-2">
-                    <button id="submitButton" class="btn btn-submit" disabled>Analyze Pronunciation</button>
+                    <button id="submitButton" class="btn btn-submit" disabled aria-label="Submit audio for pronunciation analysis">Analyze Pronunciation</button>
                 </div>
 
-                <div id="loadingIndicator" class="text-center my-4" style="display: none;">
-                    <div class="spinner-border text-primary" role="status">
+                <div id="loadingIndicator" class="text-center my-4" role="status" aria-live="assertive" aria-label="Processing audio" style="display: none;">
+                    <div class="spinner-border text-primary" aria-hidden="true">
                         <span class="visually-hidden">Loading...</span>
                     </div>
                     <p>Analyzing your pronunciation... Please wait.</p>
@@ -478,7 +478,7 @@
             </div>
 
             <!-- View 2: Results -->
-            <div id="viewResults" class="view view-results">
+            <div id="viewResults" class="view view-results" role="region" aria-label="Assessment results" aria-live="polite">
                 <h3 class="text-center mb-4">Pronunciation Snapshot</h3>
                 <div id="scoreContainer">
                     <div class="level-display"><span id="profileDescription"></span></div>
@@ -524,7 +524,7 @@
                 </div>
 
                 <div class="d-grid gap-2">
-                    <button id="newRecordingButton" class="btn btn-submit">Start New Assessment</button>
+                    <button id="newRecordingButton" class="btn btn-submit" aria-label="Start a new speech assessment">Start New Assessment</button>
                 </div>
             </div>
 
@@ -568,6 +568,43 @@
                     viewResults.classList.remove('active');
                     viewRecord.classList.add('active');
                 }
+            }
+
+            // Safe HTML rendering - only allows <strong> tags for emphasis
+            function createSafeListItem(htmlContent) {
+                const li = document.createElement('li');
+                // Parse the content and only allow <strong> tags
+                const parts = htmlContent.split(/(<strong>|<\/strong>)/i);
+                let inStrong = false;
+                let currentSpan = null;
+
+                parts.forEach(part => {
+                    if (part.toLowerCase() === '<strong>') {
+                        inStrong = true;
+                        currentSpan = document.createElement('strong');
+                    } else if (part.toLowerCase() === '</strong>') {
+                        if (currentSpan) {
+                            li.appendChild(currentSpan);
+                            currentSpan = null;
+                        }
+                        inStrong = false;
+                    } else if (part) {
+                        // Add text content (safely escaped)
+                        const textNode = document.createTextNode(part);
+                        if (inStrong && currentSpan) {
+                            currentSpan.appendChild(textNode);
+                        } else {
+                            li.appendChild(textNode);
+                        }
+                    }
+                });
+
+                // Handle unclosed strong tag
+                if (currentSpan) {
+                    li.appendChild(currentSpan);
+                }
+
+                return li;
             }
             
             // PromptRenderer - Single component parameterized by level
@@ -843,6 +880,21 @@
                     alert('Please record an audio first.');
                     return;
                 }
+
+                // Validate minimum audio length (roughly 10 seconds at 32 kbps = ~40KB)
+                const minSizeBytes = 40 * 1024;
+                if (selectedAudioFile.size < minSizeBytes) {
+                    alert('Please record at least 15 seconds of audio for accurate assessment.');
+                    return;
+                }
+
+                // Validate maximum audio file size (10MB limit for API)
+                const maxSizeBytes = 10 * 1024 * 1024;
+                if (selectedAudioFile.size > maxSizeBytes) {
+                    alert('Audio file is too large. Please record a shorter sample (under 90 seconds).');
+                    return;
+                }
+
                 loadingIndicator.style.display = 'block';
 
                 const formData = new FormData();
@@ -855,7 +907,13 @@
                     method: 'POST',
                     body: formData
                 })
-                .then(response => response.json())
+                .then(response => {
+                    // Check for HTTP errors before parsing JSON
+                    if (!response.ok) {
+                        throw new Error(`Server error: ${response.status} ${response.statusText}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     loadingIndicator.style.display = 'none';
                     if (data.error) {
@@ -891,11 +949,10 @@
                         strengthsList.appendChild(li);
                     });
 
-                    // Areas for improvement
+                    // Areas for improvement - use safe HTML rendering
                     improvementsList.innerHTML = '';
                     data.areas_for_improvement.forEach(area => {
-                        const li = document.createElement('li');
-                        li.innerHTML = area;  // Use innerHTML to render HTML tags like <strong>
+                        const li = createSafeListItem(area);
                         improvementsList.appendChild(li);
                     });
 
@@ -909,7 +966,18 @@
                     loadingIndicator.style.display = 'none';
                     // Reset UI state to allow retry
                     submitButton.disabled = false;
-                    alert('Server error: ' + error);
+                    console.error('Audio processing error:', error);
+
+                    // Provide user-friendly error message
+                    let userMessage = 'An error occurred while processing your audio. ';
+                    if (error.message.includes('Server error')) {
+                        userMessage += 'The server encountered a problem. Please try again in a moment.';
+                    } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                        userMessage += 'Please check your internet connection and try again.';
+                    } else {
+                        userMessage += 'Please try recording again.';
+                    }
+                    alert(userMessage);
                 });
             });
 
