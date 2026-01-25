@@ -106,46 +106,19 @@
         .btn-submit:hover {
             background-color: var(--color-teal);
         }
-        
-        /* Views container for page transitions */
-        .views-container {
-            position: relative;
-            min-height: 350px;
-        }
 
-        .view {
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.4s ease, transform 0.4s ease;
-            transform: translateX(30px);
-            pointer-events: none;
-        }
-
-        .view.active {
-            opacity: 1;
-            visibility: visible;
-            transform: translateX(0);
-            pointer-events: auto;
-        }
-
-        /* Recording view exits to the left */
-        .view-record:not(.active) {
-            transform: translateX(-30px);
-        }
-
-        /* Results view - now inside the views container */
-        .view-results {
-            padding: clamp(12px, 3vw, 20px);
-            border-radius: 5px;
-            background-color: var(--color-bg-light);
-        }
-
+        /* Result container - hidden by default, shown after analysis */
         .result-container {
             margin-top: clamp(15px, 3vw, 30px);
             padding: clamp(12px, 3vw, 20px);
             border-radius: 5px;
             background-color: var(--color-bg-light);
             display: none;
+        }
+
+        /* Recording section */
+        .recording-section {
+            display: block;
         }
 
         .score-display {
@@ -412,12 +385,9 @@
             <p class="lead mb-0"><em>A snapshot of how clearly and effectively you communicate in spoken Spanish.</em></p>
         </div>
 
-        <!-- Views Container - Only this section transitions -->
-        <div class="views-container" role="main" aria-label="Speech assessment area">
-
-            <!-- View 1: Recording -->
-            <div id="viewRecord" class="view view-record active">
-                <div class="card mb-4">
+        <!-- Recording Section -->
+        <div id="recordingSection" class="recording-section" role="main" aria-label="Speech recording area">
+            <div class="card mb-4">
                     <div class="card-body">
                         <!-- Instructions -->
                         <p class="instructions-text">Record a short sample of your spoken Spanish (<strong>15–60 seconds</strong>) to receive feedback on clarity, communication, and speech flow.</p>
@@ -469,16 +439,16 @@
                     <button id="submitButton" class="btn btn-submit" disabled aria-label="Submit audio for pronunciation analysis">Analyze Pronunciation</button>
                 </div>
 
-                <div id="loadingIndicator" class="text-center my-4" role="status" aria-live="assertive" aria-label="Processing audio" style="display: none;">
-                    <div class="spinner-border text-primary" aria-hidden="true">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                    <p>Analyzing your pronunciation... Please wait.</p>
+            <div id="loadingIndicator" class="text-center my-4" role="status" aria-live="assertive" aria-label="Processing audio" style="display: none;">
+                <div class="spinner-border text-primary" aria-hidden="true">
+                    <span class="visually-hidden">Loading...</span>
                 </div>
+                <p>Analyzing your pronunciation... Please wait.</p>
             </div>
+        </div>
 
-            <!-- View 2: Results -->
-            <div id="viewResults" class="view view-results" role="region" aria-label="Assessment results" aria-live="polite">
+        <!-- Results Section - Hidden by default -->
+        <div id="resultContainer" class="result-container" role="region" aria-label="Assessment results" aria-live="polite">
                 <h3 class="text-center mb-4">Pronunciation Snapshot</h3>
                 <div id="scoreContainer">
                     <div class="level-display"><span id="profileDescription"></span></div>
@@ -527,8 +497,6 @@
                     <button id="newRecordingButton" class="btn btn-submit" aria-label="Start a new speech assessment">Start New Assessment</button>
                 </div>
             </div>
-
-        </div>
     </div>
 
     <footer class="mt-4">
@@ -556,17 +524,17 @@
             const recordedAudio = document.getElementById('recordedAudio');
 
             // View switching elements
-            const viewRecord = document.getElementById('viewRecord');
-            const viewResults = document.getElementById('viewResults');
+            const recordingSection = document.getElementById('recordingSection');
+            const resultContainer = document.getElementById('resultContainer');
 
-            // Function to switch between views with transition
+            // Function to switch between views using simple display toggle
             function switchToView(viewName) {
                 if (viewName === 'results') {
-                    viewRecord.classList.remove('active');
-                    viewResults.classList.add('active');
+                    recordingSection.style.display = 'none';
+                    resultContainer.style.display = 'block';
                 } else {
-                    viewResults.classList.remove('active');
-                    viewRecord.classList.add('active');
+                    resultContainer.style.display = 'none';
+                    recordingSection.style.display = 'block';
                 }
             }
 
