@@ -641,6 +641,11 @@
 
                         // Show the display
                         promptDisplay.style.display = 'block';
+
+                        // Smooth scroll to prompt section after it becomes visible
+                        setTimeout(() => {
+                            promptDisplay.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }, 100);
                     }
                 });
             });
@@ -902,6 +907,11 @@
 
                     // Switch to results view with transition
                     switchToView('results');
+
+                    // Smooth scroll to results section after it becomes visible
+                    setTimeout(() => {
+                        resultContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 100);
 
                     // Disable Start Recording button until Start New Assessment is clicked
                     recordButton.disabled = true;
