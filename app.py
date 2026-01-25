@@ -1,4 +1,8 @@
 import os
+import glob
+import atexit
+import time
+import random
 from google.genai import types
 from google.genai import Client
 import json
@@ -59,6 +63,46 @@ bucket = get_or_create_bucket(BUCKET_NAME)
 # Create uploads folder for local testing
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# Create TTS temp directory for audio files
+TTS_TEMP_DIR = os.path.join(tempfile.gettempdir(), 'strawberry_tts')
+os.makedirs(TTS_TEMP_DIR, exist_ok=True)
+
+# TTS file max age in seconds (2 hours)
+TTS_FILE_MAX_AGE = 2 * 60 * 60
+
+def cleanup_old_tts_files():
+    """Remove TTS files older than TTS_FILE_MAX_AGE"""
+    try:
+        current_time = time.time()
+        for filepath in glob.glob(os.path.join(TTS_TEMP_DIR, 'tts_*.mp3')):
+            try:
+                file_age = current_time - os.path.getmtime(filepath)
+                if file_age > TTS_FILE_MAX_AGE:
+                    os.remove(filepath)
+                    logger.info(f"Cleaned up old TTS file: {filepath}")
+            except OSError as e:
+                logger.warning(f"Error removing TTS file {filepath}: {e}")
+    except Exception as e:
+        logger.warning(f"Error during TTS cleanup: {e}")
+
+def cleanup_all_tts_files():
+    """Remove all TTS files on shutdown"""
+    try:
+        for filepath in glob.glob(os.path.join(TTS_TEMP_DIR, 'tts_*.mp3')):
+            try:
+                os.remove(filepath)
+            except OSError:
+                pass
+        logger.info("Cleaned up all TTS files on shutdown")
+    except Exception as e:
+        logger.warning(f"Error during TTS shutdown cleanup: {e}")
+
+# Register cleanup on app shutdown
+atexit.register(cleanup_all_tts_files)
+
+# Cleanup old files on startup
+cleanup_old_tts_files()
 
 # Maximum file size (20MB)
 app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024
@@ -806,7 +850,8 @@ def evaluate_speech_clarity(transcript, words_data):
 
         # Apply ceiling to base score
         c1_1_intelligibility = min(base_intelligibility, ceiling)
-    except:
+    except (KeyError, IndexError, TypeError, ZeroDivisionError) as e:
+        logger.warning(f"Error calculating intelligibility: {e}")
         avg_confidence = 0.75
         c1_1_intelligibility = 90  # Default to ceiling for 0.75 confidence
 
@@ -851,7 +896,8 @@ def evaluate_speech_clarity(transcript, words_data):
             c1_2_thought_grouping = 70
         else:
             c1_2_thought_grouping = 60
-    except:
+    except (KeyError, IndexError, TypeError) as e:
+        logger.warning(f"Error calculating thought grouping: {e}")
         thinking_pauses = 0
         disruptive_pauses = 0
         c1_2_thought_grouping = 80
@@ -890,7 +936,8 @@ def evaluate_speech_clarity(transcript, words_data):
             c1_3_flow_continuity = 80
             speech_ratio = 0
             micro_pauses = 0
-    except:
+    except (KeyError, IndexError, TypeError, ZeroDivisionError) as e:
+        logger.warning(f"Error calculating flow continuity: {e}")
         c1_3_flow_continuity = 80
         speech_ratio = 0
         micro_pauses = 0
@@ -934,7 +981,8 @@ def evaluate_speech_clarity(transcript, words_data):
         else:
             c1_4_stability = 85  # Assume stable for short recordings
             wps_std_dev = 0
-    except:
+    except (KeyError, IndexError, TypeError, ZeroDivisionError, statistics.StatisticsError) as e:
+        logger.warning(f"Error calculating stability: {e}")
         c1_4_stability = 75
         wps_std_dev = 0
 
@@ -2439,8 +2487,11 @@ def pronunciation_assessment(transcribed_text):
             best_match = None
             best_ratio = 0
             
-            # Check against a sample of the dictionary for performance
-            dict_sample = set(list(SPANISH_DICT)[:1000]) if len(SPANISH_DICT) > 1000 else SPANISH_DICT
+            # Check against a random sample of the dictionary for performance (unbiased)
+            if len(SPANISH_DICT) > 1000:
+                dict_sample = set(random.sample(list(SPANISH_DICT), 1000))
+            else:
+                dict_sample = SPANISH_DICT
             
             for dict_word in dict_sample:
                 ratio = fuzz.ratio(word, dict_word)
@@ -2575,11 +2626,11 @@ def generate_feedback(level):
 
     # Fallback to built-in feedback templates based on profile ranges
     # Profile C — Consistent Clarity (85-100)
-    if "Profile C" in level or score >= 85:
+    if "Profile C" in level:
         return "Your pronunciation is clear and generally consistent. Small refinements will help improve overall naturalness and ease of understanding."
 
     # Profile B — Functional Clarity (65-84)
-    elif "Profile B" in level or score >= 65:
+    elif "Profile B" in level:
         return "Your pronunciation supports functional communication, with some areas that would benefit from greater consistency."
 
     # Profile A — Initial Clarity (0-64)
@@ -2666,7 +2717,7 @@ def generate_corrected_text(transcribed_text):
     
     # Si la clave API no está configurada, se devuelve el texto sin corregir como fallback
     if not os.getenv("GEMINI_API_KEY"):
-        print("Warning: GEMINI_API_KEY no encontrada. Devolviendo texto sin corregir.")
+        logger.warning("GEMINI_API_KEY not found. Returning uncorrected text.")
         return transcribed_text
 
     try:
@@ -2701,7 +2752,7 @@ def generate_corrected_text(transcribed_text):
 
     except Exception as e:
         # Manejo de errores de la API (p.ej., límite de tokens, error de conexión)
-        print(f"Error durante la corrección con el LLM: {e}") 
+        logger.error(f"Error during LLM correction: {str(e)}")
         return transcribed_text
 
 def generate_tts_feedback(text, score):
@@ -2766,22 +2817,24 @@ def generate_tts_feedback(text, score):
             except Exception as e:
                 logger.error(f"Error uploading TTS audio to bucket: {str(e)}")
                 # Fallback to local storage if bucket upload fails
-                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')
-                temp_file.write(response.audio_content)
-                temp_file.close()
-                filename = os.path.basename(temp_file.name)
-                app.config[f'TTS_FILE_{filename}'] = temp_file.name
-                logger.info(f"TTS audio saved locally: {temp_file.name}")
-                return url_for('get_tts_audio', filename=filename)
+                # Cleanup old files periodically
+                cleanup_old_tts_files()
+                local_filename = f"tts_{uuid.uuid4()}.mp3"
+                local_filepath = os.path.join(TTS_TEMP_DIR, local_filename)
+                with open(local_filepath, 'wb') as f:
+                    f.write(response.audio_content)
+                logger.info(f"TTS audio saved locally: {local_filepath}")
+                return url_for('get_tts_audio', filename=local_filename)
         else:
-            # Save to a temporary file and return its path
-            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')
-            temp_file.write(response.audio_content)
-            temp_file.close()
-            filename = os.path.basename(temp_file.name)
-            app.config[f'TTS_FILE_{filename}'] = temp_file.name
-            logger.info(f"TTS audio saved locally: {temp_file.name}")
-            return url_for('get_tts_audio', filename=filename)
+            # Save to TTS temp directory
+            # Cleanup old files periodically
+            cleanup_old_tts_files()
+            local_filename = f"tts_{uuid.uuid4()}.mp3"
+            local_filepath = os.path.join(TTS_TEMP_DIR, local_filename)
+            with open(local_filepath, 'wb') as f:
+                f.write(response.audio_content)
+            logger.info(f"TTS audio saved locally: {local_filepath}")
+            return url_for('get_tts_audio', filename=local_filename)
 
     except Exception as e:
         logger.error(f"Error generating TTS audio: {str(e)}")
@@ -2929,11 +2982,30 @@ def process_audio():
 
 @app.route('/get-tts-audio/<filename>')
 def get_tts_audio(filename):
-    """Serve TTS audio files from local storage"""
-    file_path = app.config.get(f'TTS_FILE_{filename}')
-    if not file_path:
+    """Serve TTS audio files from local TTS temp directory"""
+    # Security: Validate filename to prevent path traversal attacks
+    if '/' in filename or '\\' in filename or '..' in filename:
+        logger.warning(f"Invalid TTS filename requested: {filename}")
+        return "Invalid filename", 400
+
+    # Only allow expected filename pattern (tts_<uuid>.mp3)
+    if not filename.startswith('tts_') or not filename.endswith('.mp3'):
+        logger.warning(f"Unexpected TTS filename format: {filename}")
+        return "Invalid filename format", 400
+
+    file_path = os.path.join(TTS_TEMP_DIR, filename)
+
+    # Verify the file exists and is within the TTS directory
+    if not os.path.exists(file_path):
         return "Audio file not found", 404
-    
+
+    # Extra security: ensure resolved path is within TTS_TEMP_DIR
+    real_path = os.path.realpath(file_path)
+    real_tts_dir = os.path.realpath(TTS_TEMP_DIR)
+    if not real_path.startswith(real_tts_dir):
+        logger.warning(f"Path traversal attempt detected: {filename}")
+        return "Invalid path", 400
+
     return send_file(file_path, mimetype='audio/mpeg')
 
 @app.route('/references')
