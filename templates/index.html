@@ -22,36 +22,51 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: var(--color-bg-light);
             margin: 0;
-            padding: 20px 0 40px;
+            padding: clamp(10px, 2vh, 20px) 0 clamp(15px, 3vh, 40px);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
-        
+
         .container {
             max-width: 800px;
+            width: 100%;
             background-color: white;
             border-radius: 10px;
-            padding: 30px;
+            padding: clamp(15px, 4vw, 30px);
             box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            box-sizing: border-box;
         }
         
         .header {
             background-color: var(--color-primary);
             color: white;
             text-align: center;
-            margin: -30px -30px 30px;
-            padding: 20px 30px;
+            margin: clamp(-15px, -4vw, -30px) clamp(-15px, -4vw, -30px) clamp(15px, 3vw, 30px);
+            padding: clamp(12px, 2.5vw, 20px) clamp(15px, 4vw, 30px);
             border-top-left-radius: 10px;
             border-top-right-radius: 10px;
         }
-        
+
         .header h1 {
             margin-top: 10px;
             margin-bottom: 5px;
+            font-size: clamp(1.1rem, 4vw, 1.6rem);
             text-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
         }
 
         .header .lead {
-            font-size: 0.9rem;
+            font-size: clamp(0.75rem, 2.5vw, 0.95rem);
             line-height: 1.3;
+        }
+
+        .instructions-text {
+            font-size: clamp(0.75rem, 2.5vw, 0.85rem);
+            color: #6c757d;
+            margin-bottom: 1rem;
+            text-align: center;
         }
         
         .card-header {
@@ -93,44 +108,50 @@
         }
         
         .result-container {
-            margin-top: 30px;
-            padding: 20px;
+            margin-top: clamp(15px, 3vw, 30px);
+            padding: clamp(12px, 3vw, 20px);
             border-radius: 5px;
             background-color: var(--color-bg-light);
             display: none;
         }
-        
+
         .score-display {
-            font-size: 24px;
+            font-size: clamp(18px, 5vw, 24px);
             font-weight: bold;
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: clamp(10px, 2.5vw, 20px);
         }
-        
+
         .level-display {
-            font-size: 20px;
+            font-size: clamp(16px, 4vw, 20px);
             color: var(--color-teal-dark);
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: clamp(10px, 2.5vw, 20px);
         }
-        
+
         .score-meter {
-            height: 30px;
+            min-height: 28px;
+            height: auto;
             background-color: #e9ecef;
             border-radius: 15px;
-            margin-bottom: 20px;
+            margin-bottom: clamp(10px, 2.5vw, 20px);
             overflow: hidden;
         }
-        
+
         .score-fill {
-            height: 100%;
+            min-height: 28px;
             background: linear-gradient(90deg, #db6565 0%, #ef7c8e 50%, #7ba1a5 100%);
             border-radius: 15px;
             transition: width 1s;
             text-align: center;
             color: white;
             font-weight: bold;
-            line-height: 30px;
+            font-size: clamp(12px, 3vw, 16px);
+            padding: 4px 8px;
+            line-height: 1.4;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
         /* Style for the recording tip banner */
@@ -201,11 +222,50 @@
             box-shadow: 0 2px 6px rgba(219, 101, 101, 0.3);
         }
 
-        /* Responsive tabs for mobile */
+        /* Responsive styles for tablets and mobile */
+        @media (max-width: 768px) {
+            .container {
+                margin: 0 10px;
+                border-radius: 8px;
+            }
+
+            .card-body {
+                padding: 15px;
+            }
+
+            .result-container .card {
+                margin-bottom: 12px;
+            }
+        }
+
         @media (max-width: 576px) {
             .prompt-link {
                 padding: 8px 10px;
                 font-size: 0.9rem;
+            }
+
+            .container {
+                margin: 0 5px;
+                padding: 12px;
+            }
+
+            .header {
+                margin: -12px -12px 15px;
+                padding: 12px 15px;
+            }
+
+            .card-header h5 {
+                font-size: 1rem;
+            }
+
+            .result-container h3 {
+                font-size: 1.1rem;
+                margin-bottom: 15px;
+            }
+
+            footer {
+                margin-top: 15px;
+                font-size: 0.8rem;
             }
         }
 
@@ -213,6 +273,48 @@
             .prompt-link {
                 padding: 8px 8px;
                 font-size: 0.85rem;
+            }
+
+            .header h1 {
+                font-size: 1rem;
+            }
+
+            .header .lead {
+                font-size: 0.7rem;
+            }
+
+            .score-fill {
+                font-size: 11px;
+                padding: 3px 5px;
+            }
+        }
+
+        /* For iframe contexts with limited height */
+        @media (max-height: 700px) {
+            body {
+                padding: 5px 0 10px;
+            }
+
+            .container {
+                padding: 15px;
+            }
+
+            .header {
+                margin-bottom: 15px;
+                padding: 10px 15px;
+            }
+
+            .result-container {
+                margin-top: 15px;
+                padding: 12px;
+            }
+
+            .card.mb-3, .card.mb-4 {
+                margin-bottom: 10px !important;
+            }
+
+            footer {
+                margin-top: 15px;
             }
         }
         
@@ -236,9 +338,17 @@
         
         footer {
             text-align: center;
-            margin-top: 30px;
+            margin-top: clamp(15px, 3vw, 30px);
             color: var(--color-teal-dark);
-            font-size: 0.9rem;
+            font-size: clamp(0.75rem, 2.5vw, 0.9rem);
+            width: 100%;
+            padding: 0 10px;
+            box-sizing: border-box;
+        }
+
+        .footer-link {
+            color: #6c757d;
+            font-size: inherit;
         }
 
         /* Ensure feedback text is readable with high contrast */
@@ -265,14 +375,14 @@
     <div class="container">
         <!-- HEADER -->
         <div class="header">
-            <h1 style="font-size: 1.6rem;"><strong>FACT Spanish Speech Performance Check 🍓</strong></h1>
-            <p class="lead mb-0" style="font-size: 0.95rem; color: rgba(0,0,0,0.7);"><em>A snapshot of how clearly and effectively you communicate in spoken Spanish.</em></p>
+            <h1><strong>FACT Spanish Speech Performance Check 🍓</strong></h1>
+            <p class="lead mb-0"><em>A snapshot of how clearly and effectively you communicate in spoken Spanish.</em></p>
         </div>
 
         <div class="card mb-4">
             <div class="card-body">
                 <!-- Instructions -->
-                <p style="font-size: 0.85rem; color: #6c757d; margin-bottom: 1rem; text-align: center;">Record a short sample of your spoken Spanish (<strong>15–60 seconds</strong>) to receive feedback on clarity, communication, and speech flow.</p>
+                <p class="instructions-text">Record a short sample of your spoken Spanish (<strong>15–60 seconds</strong>) to receive feedback on clarity, communication, and speech flow.</p>
 
                 <!-- Prompt Section -->
                 <div class="prompt-section">
@@ -381,7 +491,7 @@
 
     <footer class="mt-4">
         <p>© 2025 Spanish Learning Edge LLC</p>
-        <p><a href="/static/How_This_Evaluation_Works.pdf" target="_blank" style="color: #6c757d; font-size: 0.85rem;">How This Evaluation Works</a></p>
+        <p><a href="/static/How_This_Evaluation_Works.pdf" target="_blank" class="footer-link">How This Evaluation Works</a></p>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
