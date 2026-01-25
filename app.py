@@ -60,10 +60,6 @@ def get_or_create_bucket(bucket_name):
 
 bucket = get_or_create_bucket(BUCKET_NAME)
 
-# Create uploads folder for local testing
-UPLOAD_FOLDER = 'uploads'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
 # Create TTS temp directory for audio files
 TTS_TEMP_DIR = os.path.join(tempfile.gettempdir(), 'strawberry_tts')
 os.makedirs(TTS_TEMP_DIR, exist_ok=True)
@@ -394,101 +390,6 @@ def transcribe_audio(audio_content):
 # =============================================================================
 # FACT ASSESSMENT SYSTEM - Based on Instructor's Rubric
 # =============================================================================
-
-# INTERNAL ACTFL BAND MAPPING (invisible to users)
-# Used for: adjusting expectations, weighting penalties, modulating feedback tone
-ACTFL_BANDS = {
-    'novice_low': {'min': 0, 'max': 49, 'name': 'Novice Low'},
-    'novice_mid': {'min': 50, 'max': 54, 'name': 'Novice Mid'},
-    'novice_high': {'min': 55, 'max': 59, 'name': 'Novice High'},
-    'intermediate_low': {'min': 60, 'max': 64, 'name': 'Intermediate Low'},
-    'intermediate_mid': {'min': 65, 'max': 69, 'name': 'Intermediate Mid'},
-    'intermediate_high': {'min': 70, 'max': 74, 'name': 'Intermediate High'},
-    'advanced_low': {'min': 75, 'max': 79, 'name': 'Advanced Low'},
-    'advanced_mid': {'min': 80, 'max': 84, 'name': 'Advanced Mid'},
-    'advanced_high': {'min': 85, 'max': 89, 'name': 'Advanced High'},
-    'superior': {'min': 90, 'max': 94, 'name': 'Superior'},
-    'distinguished': {'min': 95, 'max': 100, 'name': 'Distinguished'}
-}
-
-def get_actfl_band(score):
-    """Map score to internal ACTFL band (never shown to user)"""
-    for band_key, band_info in ACTFL_BANDS.items():
-        if band_info['min'] <= score <= band_info['max']:
-            return band_key
-    return 'novice_low'  # fallback
-
-# LEVEL CONFIGURATION - Expected signals by level (NOT requirements, just signals)
-LEVEL_CONFIGS = {
-    'beginner': {
-        'name': 'Beginner',
-        'expected_structures': {
-            'present': r'\b(soy|estoy|tengo|hablo|vivo|trabajo|estudio|como|hago|voy|quiero|puedo|debo|me gusta|se llama)\b',
-            'basic_modality': r'\b(me gusta|quiero|puedo|necesito)\b'
-        },
-        'expected_connectors': ['y', 'pero', 'también', 'porque'],
-        'vocabulary': {
-            'personal': ['yo', 'mi', 'me', 'mis', 'nombre', 'soy', 'tengo', 'familia', 'años', 'casa'],
-            'thematic_progression': 'personal'  # Personal vocabulary = high score at this level
-        },
-        'prompt_checklist': {
-            'introduce_yourself': ['name_origin', 'age_occupation', 'languages', 'hobbies']
-        },
-        'level_multiplier': 1.0  # Base multiplier for penalties
-    },
-    'intermediate': {
-        'name': 'Intermediate',
-        'expected_structures': {
-            'preterite': r'\b(fui|hice|comí|dije|fue|hablé|estudié|trabajé|viví|tuve|estuvo|hizo|desperté)\b',
-            'imperfect': r'\b(era|estaba|tenía|iba|hacía|hablaba|comía|vivía|trabajaba|estudiaba)\b',
-            'temporal_markers': r'\b(ayer|primero|después|luego|entonces|cuando|mientras)\b',
-            'cognitive_modality': r'\b(creo que|pienso que|me parece que|considero que)\b'
-        },
-        'expected_connectors': ['primero', 'después', 'luego', 'porque', 'pero', 'cuando', 'mientras', 'por la mañana', 'por la tarde'],
-        'vocabulary': {
-            'everyday': ['casa', 'trabajo', 'escuela', 'comer', 'estudiar', 'amigos', 'tiempo', 'día', 'hacer', 'ir'],
-            'thematic_progression': 'everyday'  # Everyday vocabulary = high score at this level
-        },
-        'prompt_checklist': {
-            'describe_your_day': ['wake_time_morning', 'activities', 'met_people', 'how_felt']
-        },
-        'level_multiplier': 1.5  # Moderate penalties for same issues
-    },
-    'advanced': {
-        'name': 'Advanced',
-        'expected_structures': {
-            'subjunctive': r'\b(sea|esté|tenga|quiera|pueda|haya|espero que|es importante que|me preocupa que|no creo que|ojalá|para que)\b',
-            'conditional': r'\b(sería|haría|iría|tendría|podría|debería|si fuera|si tuviera|si pudiera)\b',
-            'evaluative_modality': r'\b(me parece importante|es necesario que|considero que|me preocupa que|no creo que)\b',
-            'complex_connectors': r'\b(sin embargo|no obstante|por un lado|por otro lado|aunque|a pesar de|por lo tanto|debido a)\b'
-        },
-        'expected_connectors': ['sin embargo', 'no obstante', 'aunque', 'por un lado', 'por otro lado', 'por lo tanto', 'debido a', 'ya que'],
-        'vocabulary': {
-            'abstract': ['sociedad', 'cultura', 'problema', 'educación', 'importante', 'necesario', 'tecnología', 'futuro', 'desarrollar', 'híbrido'],
-            'thematic_progression': 'abstract'  # Abstract vocabulary = high score at this level
-        },
-        'prompt_checklist': {
-            'opinion_technology_education': ['positive_aspect', 'concern_doubt', 'personal_experience', 'future_idea']
-        },
-        'level_multiplier': 2.0  # Strong penalties for same issues at advanced level
-    }
-}
-
-# MODALITY DETECTION - 3 layers
-MODALITY_LAYERS = {
-    'basic': {  # Basic preferences and abilities
-        'patterns': r'\b(me gusta|me encanta|quiero|puedo|necesito|prefiero)\b',
-        'weight': 0.3
-    },
-    'cognitive': {  # Cognitive/opinion modality
-        'patterns': r'\b(creo que|pienso que|me parece que|considero que|opino que)\b',
-        'weight': 0.6
-    },
-    'evaluative': {  # Evaluative/normative modality
-        'patterns': r'\b(es importante que|es necesario que|me preocupa que|me alegra que|espero que|ojalá)\b',
-        'weight': 1.0
-    }
-}
 
 def evaluate_speech_clarity(transcript, words_data):
     """C1: Speech Clarity (25% weight)
