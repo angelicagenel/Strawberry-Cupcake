@@ -1,0 +1,52 @@
+{
+  "module": {
+    "id": "vowels-m1",
+    "name": "The Power of the 5 Mexican Spanish Pure Vowels",
+    "description": "Master the essential five pure vowels fundamental to Mexican Spanish pronunciation",
+    "focus_area": "vowel clarity and pure vowel sounds",
+    "feedback_focus": "Pay special attention to vowel clarity. Spanish has 5 pure vowels (a, e, i, o, u) that should sound crisp and consistent, unlike English vowels which often reduce to 'uh'. Focus on maintaining clear, distinct vowel sounds throughout your speech."
+  },
+  "exercises": {
+    "L1": {
+      "name": "Vowel Intro - Single Words",
+      "lesson": "Focused Listening & Speaking",
+      "description": "Practice individual vowel sounds in isolation",
+      "prompt": "Record yourself clearly pronouncing words that highlight each vowel sound: /a/ as in 'casas', /e/ as in 'diferente', /i/ as in 'ahí', /o/ as in 'Córdoba', /u/ as in 'antigüa'. Focus on making each vowel sound pure and distinct.",
+      "duration": "15-30 seconds",
+      "max_attempts": 2,
+      "feedback_emphasis": "vowel purity and consistency"
+    },
+    "L2": {
+      "name": "Shadowing - La Mulata",
+      "lesson": "Say It Out Loud",
+      "description": "Shadow segments from La Mulata de Córdoba",
+      "prompt": "After listening to the La Mulata segment, record yourself rephrasing the message in your own words. Focus on maintaining clear vowel sounds as you speak naturally.",
+      "duration": "20-40 seconds",
+      "max_attempts": 2,
+      "feedback_emphasis": "vowel clarity in connected speech"
+    },
+    "L3": {
+      "name": "Mini-Script - Your Story",
+      "lesson": "Say It Out Loud",
+      "description": "Create and record your own transformation story inspired by La Mulata",
+      "prompt": "Record your 5-line mini-script about a challenging situation where hope and creativity open the door to freedom. Speak naturally while maintaining clear, pure Spanish vowels throughout.",
+      "duration": "20-40 seconds",
+      "max_attempts": 2,
+      "feedback_emphasis": "vowel clarity with emotional expression"
+    },
+    "L4": {
+      "name": "Final Challenge",
+      "lesson": "Final Challenge",
+      "description": "Connect La Mulata's story to your personal experience",
+      "prompt": "Think about how one of the phrases from La Mulata connects with your life. Record a 20-40 second response sharing your reflection. Speak naturally, self-correct if needed, and focus on clear vowel pronunciation.",
+      "duration": "20-40 seconds",
+      "max_attempts": 2,
+      "feedback_emphasis": "overall vowel clarity and natural expression"
+    }
+  },
+  "settings": {
+    "total_attempts_per_code": 8,
+    "require_access_code": true,
+    "show_progress_table": true
+  }
+}

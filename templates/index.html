@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FACT Spanish Speech Performance Check 🍓</title>
+    <title>Spanish Vowels - Speech Practice</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
@@ -16,8 +16,9 @@
             --color-teal: #7ba1a5;
             --color-bg-light: #f8ebec;
             --color-text-dark: #333333;
+            --color-success: #28a745;
         }
-        
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: var(--color-bg-light);
@@ -39,7 +40,7 @@
             box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
             box-sizing: border-box;
         }
-        
+
         .header {
             background-color: var(--color-primary);
             color: white;
@@ -62,32 +63,138 @@
             line-height: 1.3;
         }
 
-        .instructions-text {
-            font-size: clamp(0.75rem, 2.5vw, 0.85rem);
-            color: #6c757d;
-            margin-bottom: 1rem;
+        /* Access Code Screen */
+        .access-code-section {
             text-align: center;
+            padding: 40px 20px;
         }
-        
-        .card-header {
+
+        .access-code-section h2 {
+            color: var(--color-teal-dark);
+            margin-bottom: 20px;
+        }
+
+        .access-code-input {
+            font-size: 1.5rem;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            max-width: 300px;
+            margin: 0 auto;
+        }
+
+        .access-code-error {
+            color: var(--color-accent);
+            margin-top: 10px;
+            display: none;
+        }
+
+        /* Progress Table */
+        .progress-section {
+            margin-bottom: 25px;
+            padding: 15px;
+            background-color: var(--color-bg-light);
+            border-radius: 8px;
+        }
+
+        .progress-section h3 {
+            color: var(--color-teal-dark);
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+        }
+
+        .progress-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .progress-table th,
+        .progress-table td {
+            padding: 10px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+        }
+
+        .progress-table th {
             background-color: var(--color-primary-light);
-            border-radius: 5px;
+            color: var(--color-text-dark);
+            font-weight: 600;
         }
-        
+
+        .progress-table .score {
+            font-weight: bold;
+        }
+
+        .progress-table .score.completed {
+            color: var(--color-success);
+        }
+
+        .progress-table .score.pending {
+            color: #999;
+        }
+
+        .progress-table .current-exercise {
+            background-color: var(--color-primary-light);
+        }
+
+        .improvement-badge {
+            font-size: 0.8rem;
+            color: var(--color-success);
+        }
+
+        /* Exercise Info */
+        .exercise-info {
+            background-color: var(--color-primary-light);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .exercise-info h4 {
+            color: var(--color-accent);
+            margin-bottom: 10px;
+        }
+
+        .exercise-info p {
+            margin-bottom: 8px;
+            color: var(--color-text-dark);
+        }
+
+        .attempt-status {
+            display: inline-block;
+            padding: 5px 12px;
+            background-color: var(--color-teal);
+            color: white;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-top: 10px;
+        }
+
+        .attempt-status.warning {
+            background-color: #ffc107;
+            color: #333;
+        }
+
+        .attempt-status.exhausted {
+            background-color: var(--color-accent);
+        }
+
+        /* Recording Section */
         .btn-record {
             background-color: var(--color-accent);
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 12px 30px;
             border-radius: 5px;
             cursor: pointer;
             transition: background-color 0.3s;
+            font-size: 1.1rem;
         }
-        
+
         .btn-record.recording {
             animation: pulse 1.5s infinite;
         }
-        
+
         .btn-record:hover {
             background-color: var(--color-secondary);
         }
@@ -102,12 +209,23 @@
             color: white;
             border: none;
         }
-        
+
         .btn-submit:hover {
             background-color: var(--color-teal);
         }
 
-        /* Result container - hidden by default, shown after analysis */
+        .btn-primary-custom {
+            background-color: var(--color-primary);
+            border-color: var(--color-primary);
+            color: white;
+        }
+
+        .btn-primary-custom:hover {
+            background-color: var(--color-secondary);
+            border-color: var(--color-secondary);
+        }
+
+        /* Result container */
         .result-container {
             margin-top: clamp(15px, 3vw, 30px);
             padding: clamp(12px, 3vw, 20px);
@@ -116,16 +234,8 @@
             display: none;
         }
 
-        /* Recording section */
         .recording-section {
             display: block;
-        }
-
-        .level-display {
-            font-size: clamp(16px, 4vw, 20px);
-            color: var(--color-teal-dark);
-            text-align: center;
-            margin-bottom: clamp(10px, 2.5vw, 20px);
         }
 
         .score-meter {
@@ -152,178 +262,18 @@
             align-items: center;
             justify-content: center;
         }
-        
-        /* Style for the prompt section */
-        .prompt-section {
-            background-color: transparent;
-            border-radius: 0;
-            padding: 0 0 20px 0;
-            margin-bottom: 20px;
-            text-align: center;
-        }
 
-        .prompt-title {
-            color: var(--color-text-dark);
-            font-weight: 500;
-            margin-bottom: 15px;
-            font-size: 0.95rem;
-        }
-        
-        .prompt-links {
-            display: flex;
-            justify-content: center;
-            gap: 8px;
-            width: 100%;
-            max-width: 100%;
-        }
-
-        .prompt-link {
-            flex: 1;
-            padding: 12px 20px;
-            background-color: #f5f5f5;
-            color: #666;
-            text-decoration: none;
-            border: none;
-            border-radius: 6px;
-            transition: all 0.3s ease;
-            text-align: center;
-            font-weight: 500;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-            cursor: pointer;
-        }
-
-        .prompt-link:hover {
-            background-color: #e8e8e8;
-            color: #555;
-            text-decoration: none;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
-            transform: translateY(-1px);
-        }
-
-        .prompt-link.active {
-            background-color: var(--color-accent);
-            color: white;
-            font-weight: 600;
-            box-shadow: 0 2px 6px rgba(219, 101, 101, 0.3);
-        }
-
-        /* Responsive styles for tablets and mobile */
-        @media (max-width: 768px) {
-            .container {
-                margin: 0 10px;
-                border-radius: 8px;
-            }
-
-            .card-body {
-                padding: 15px;
-            }
-
-            .result-container .card {
-                margin-bottom: 12px;
-            }
-        }
-
-        @media (max-width: 576px) {
-            .prompt-link {
-                padding: 8px 10px;
-                font-size: 0.9rem;
-            }
-
-            .container {
-                margin: 0 5px;
-                padding: 12px;
-            }
-
-            .header {
-                margin: -12px -12px 15px;
-                padding: 12px 15px;
-            }
-
-            .card-header h5 {
-                font-size: 1rem;
-            }
-
-            .result-container h3 {
-                font-size: 1.1rem;
-                margin-bottom: 15px;
-            }
-
-            footer {
-                margin-top: 15px;
-                font-size: 0.8rem;
-            }
-        }
-
-        @media (max-width: 400px) {
-            .prompt-link {
-                padding: 8px 8px;
-                font-size: 0.85rem;
-            }
-
-            .header h1 {
-                font-size: 1rem;
-            }
-
-            .header .lead {
-                font-size: 0.7rem;
-            }
-
-            .score-fill {
-                font-size: 11px;
-                padding: 3px 5px;
-            }
-        }
-
-        /* For iframe contexts with limited height */
-        @media (max-height: 700px) {
-            body {
-                padding: 5px 0 10px;
-            }
-
-            .container {
-                padding: 15px;
-            }
-
-            .header {
-                margin-bottom: 15px;
-                padding: 10px 15px;
-            }
-
-            .result-container {
-                margin-top: 15px;
-                padding: 12px;
-            }
-
-            .card.mb-3, .card.mb-4 {
-                margin-bottom: 10px !important;
-            }
-
-            footer {
-                margin-top: 15px;
-            }
-        }
-        
-        /* Inline prompt display */
-        #promptDisplay {
-            background-color: var(--color-primary-light);
-            border: none;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-
-        #promptDisplay .card-body {
-            padding: 20px;
-        }
-        
         @keyframes pulse {
             0% { transform: scale(1); }
             50% { transform: scale(1.05); }
             100% { transform: scale(1); }
         }
-        
+
+        .card-header {
+            background-color: var(--color-primary-light);
+            border-radius: 5px;
+        }
+
         footer {
             text-align: center;
             margin-top: clamp(15px, 3vw, 30px);
@@ -339,13 +289,36 @@
             font-size: inherit;
         }
 
-        /* Ensure feedback text is readable with high contrast */
+        /* Hidden sections */
+        .hidden {
+            display: none !important;
+        }
+
+        /* Responsive */
+        @media (max-width: 576px) {
+            .container {
+                margin: 0 5px;
+                padding: 12px;
+            }
+
+            .header {
+                margin: -12px -12px 15px;
+                padding: 12px 15px;
+            }
+
+            .progress-table th,
+            .progress-table td {
+                padding: 6px 4px;
+                font-size: 0.85rem;
+            }
+        }
+
+        /* Feedback text styling */
         #feedbackText,
         #strengthsList,
         #improvementsList,
-        #profileDescription,
         #transcribedText {
-            color: #333333; /* Dark gray/black for high contrast and readability */
+            color: #333333;
         }
 
         #strengthsList li,
@@ -354,8 +327,21 @@
         }
 
         #improvementsList li strong {
-            color: #2d5016; /* Dark high-contrast green for emphasized words */
+            color: #2d5016;
             font-weight: 600;
+        }
+
+        /* Vowel focus callout */
+        .vowel-focus-callout {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 12px 15px;
+            margin-bottom: 20px;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .vowel-focus-callout strong {
+            color: var(--color-accent);
         }
     </style>
 </head>
@@ -363,49 +349,79 @@
     <div class="container">
         <!-- HEADER -->
         <div class="header">
-            <h1>FACT Spanish Speech Performance Check 🍓</h1>
-            <p class="lead mb-0"><em>A snapshot of how clearly and effectively you communicate in spoken Spanish.</em></p>
+            <h1 id="headerTitle">Spanish Vowels Practice</h1>
+            <p class="lead mb-0" id="headerSubtitle"><em>Master the 5 pure vowels of Mexican Spanish</em></p>
         </div>
 
-        <!-- Recording Section -->
-        <div id="recordingSection" class="recording-section" role="main" aria-label="Speech recording area">
-            <div class="card mb-4">
-                    <div class="card-body">
-                        <!-- Instructions -->
-                        <p class="instructions-text">Record a short sample of your spoken Spanish (<strong>15–60 seconds</strong>) to receive feedback on clarity, communication, and speech flow.</p>
+        <!-- ACCESS CODE SECTION (shown first if no code stored) -->
+        <div id="accessCodeSection" class="access-code-section">
+            <h2>Welcome!</h2>
+            <p>Enter your course access code to begin.</p>
+            <p class="text-muted small">You'll find this code in your course materials.</p>
 
-                        <!-- Prompt Section -->
-                        <div class="prompt-section">
-                            <p class="prompt-title">Need inspiration? Select a level:</p>
-                            <div class="prompt-links">
-                                <a href="#" class="prompt-link" data-level="beginner">Beginner</a>
-                                <a href="#" class="prompt-link" data-level="intermediate">Intermediate</a>
-                                <a href="#" class="prompt-link" data-level="advanced">Advanced</a>
-                            </div>
-                        </div>
+            <div class="mb-4">
+                <input type="text"
+                       id="accessCodeInput"
+                       class="form-control access-code-input"
+                       placeholder="VOWEL-XXXX"
+                       maxlength="20"
+                       autocomplete="off">
+                <p id="accessCodeError" class="access-code-error"></p>
+            </div>
 
-                        <!-- Inline Prompt Display -->
-                        <div id="promptDisplay" class="card mb-3" style="display: none;">
-                            <div class="card-body position-relative">
-                                <button type="button" class="btn-close position-absolute top-0 end-0 m-2" aria-label="Close" id="closePromptDisplay"></button>
-                                <p><strong id="promptTopicTitle">Topic: Introduce Yourself</strong></p>
-                                <p id="promptInstructions">Speak freely in Spanish.</p>
-                                <p style="margin-top: 10px; margin-bottom: 5px;"><strong>Guidance (what to include):</strong></p>
-                                <ul id="promptGuidanceBullets" style="margin-bottom: 10px;">
-                                    <!-- Bullets added dynamically -->
-                                </ul>
-                                <p id="promptReminder" style="font-style: italic; color: #666;"></p>
-                                <p id="promptDuration"><strong>Time: 15–60 seconds</strong></p>
-                            </div>
-                        </div>
+            <button id="validateCodeBtn" class="btn btn-primary-custom btn-lg">
+                Start Learning
+            </button>
+        </div>
 
-                        <div class="text-center">
-                            <button id="recordButton" class="btn btn-record" aria-label="Start recording your speech">
-                                <i class="bi bi-mic" aria-hidden="true"></i> Start Recording
-                            </button>
-                            <p id="recordingStatus" class="mt-2" role="status" aria-live="polite"></p>
-                            <div id="recordingTimer" class="mt-2" style="display: none;">00:00</div>
-                        </div>
+        <!-- MAIN APP SECTION (shown after valid code) -->
+        <div id="mainAppSection" class="hidden">
+
+            <!-- Progress Table -->
+            <div id="progressSection" class="progress-section">
+                <h3><i class="bi bi-bar-chart-fill"></i> Your Progress</h3>
+                <table class="progress-table">
+                    <thead>
+                        <tr>
+                            <th>Exercise</th>
+                            <th>Attempt 1</th>
+                            <th>Attempt 2</th>
+                        </tr>
+                    </thead>
+                    <tbody id="progressTableBody">
+                        <!-- Populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Recording Section -->
+            <div id="recordingSection" class="recording-section">
+
+                <!-- Exercise Info -->
+                <div id="exerciseInfo" class="exercise-info">
+                    <h4 id="exerciseName">Exercise</h4>
+                    <p id="exercisePrompt">Instructions will appear here.</p>
+                    <p><strong>Duration:</strong> <span id="exerciseDuration">20-40 seconds</span></p>
+                    <div id="attemptStatus" class="attempt-status">
+                        Attempt 1 of 2
+                    </div>
+                </div>
+
+                <!-- Vowel Focus Reminder -->
+                <div class="vowel-focus-callout">
+                    <strong>Focus:</strong> Keep your vowels <strong>pure and crisp</strong>.
+                    Spanish vowels don't reduce to "uh" like English. Each vowel should sound clear and consistent.
+                </div>
+
+                <!-- Recording Controls -->
+                <div class="card mb-4">
+                    <div class="card-body text-center">
+                        <button id="recordButton" class="btn btn-record" aria-label="Start recording">
+                            <i class="bi bi-mic"></i> Start Recording
+                        </button>
+                        <p id="recordingStatus" class="mt-2"></p>
+                        <div id="recordingTimer" class="mt-2" style="display: none; font-size: 1.5rem; font-weight: bold;">00:00</div>
+
                         <div id="audioPreview" class="mt-3" style="display: none;">
                             <h6>Preview:</h6>
                             <audio id="recordedAudio" controls class="w-100"></audio>
@@ -414,24 +430,26 @@
                 </div>
 
                 <div class="d-grid gap-2">
-                    <button id="submitButton" class="btn btn-submit" disabled aria-label="Submit audio for pronunciation analysis">Analyze Pronunciation</button>
+                    <button id="submitButton" class="btn btn-submit" disabled>
+                        Analyze My Pronunciation
+                    </button>
                 </div>
 
-            <div id="loadingIndicator" class="text-center my-4" role="status" aria-live="assertive" aria-label="Processing audio" style="display: none;">
-                <div class="spinner-border text-primary" aria-hidden="true">
-                    <span class="visually-hidden">Loading...</span>
+                <div id="loadingIndicator" class="text-center my-4" style="display: none;">
+                    <div class="spinner-border text-primary">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p>Analyzing your pronunciation... Please wait.</p>
                 </div>
-                <p>Analyzing your pronunciation... Please wait.</p>
             </div>
-        </div>
 
-        <!-- Results Section - Hidden by default -->
-        <div id="resultContainer" class="result-container" role="region" aria-label="Assessment results" aria-live="polite">
-                <h3 class="text-center mb-4">Pronunciation Snapshot</h3>
+            <!-- Results Section -->
+            <div id="resultContainer" class="result-container">
+                <h3 class="text-center mb-4">Your Results</h3>
+
                 <div id="scoreContainer">
-                    <div class="level-display"><span id="profileDescription"></span></div>
                     <div class="score-meter">
-                        <div class="score-fill" id="scoreFill" style="width: 0%;">Estimated Clarity: 0%</div>
+                        <div class="score-fill" id="scoreFill" style="width: 0%;">Score: 0%</div>
                     </div>
                 </div>
 
@@ -461,202 +479,41 @@
 
                 <div class="card mb-3">
                     <div class="card-header">
-                        <h5 class="mb-0">Automated Pronunciation Example</h5>
+                        <h5 class="mb-0">Pronunciation Example</h5>
                     </div>
                     <div class="card-body">
                         <audio id="ttsAudio" controls class="w-100">
                             <source src="" type="audio/mp3">
-                            Your browser does not support audio playback.
                         </audio>
                     </div>
                 </div>
 
                 <div class="d-grid gap-2">
-                    <button id="newRecordingButton" class="btn btn-submit" aria-label="Start a new speech assessment">Start New Assessment</button>
+                    <button id="tryAgainButton" class="btn btn-primary-custom" style="display: none;">
+                        Try Again (Attempt 2)
+                    </button>
+                    <button id="backToProgressButton" class="btn btn-submit">
+                        Back to Progress
+                    </button>
                 </div>
             </div>
+        </div>
     </div>
 
     <footer class="mt-4">
         <p>© 2025 Spanish Learning Edge LLC</p>
-        <p><a href="/static/How_This_Evaluation_Works.pdf" target="_blank" class="footer-link">How This Evaluation Works</a></p>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const recordButton = document.getElementById('recordButton');
-            const submitButton = document.getElementById('submitButton');
-            const recordingStatus = document.getElementById('recordingStatus');
-            const recordingTimer = document.getElementById('recordingTimer');
-            const profileDescription = document.getElementById('profileDescription');
-            const scoreFill = document.getElementById('scoreFill');
-            const transcribedText = document.getElementById('transcribedText');
-            const ttsAudio = document.getElementById('ttsAudio');
-            const feedbackText = document.getElementById('feedbackText');
-            const strengthsList = document.getElementById('strengthsList');
-            const improvementsList = document.getElementById('improvementsList');
-            const newRecordingButton = document.getElementById('newRecordingButton');
-            const loadingIndicator = document.getElementById('loadingIndicator');
-            const audioPreview = document.getElementById('audioPreview');
-            const recordedAudio = document.getElementById('recordedAudio');
-
-            // View switching elements
-            const recordingSection = document.getElementById('recordingSection');
-            const resultContainer = document.getElementById('resultContainer');
-
-            // Function to switch between views using simple display toggle
-            function switchToView(viewName) {
-                if (viewName === 'results') {
-                    recordingSection.style.display = 'none';
-                    resultContainer.style.display = 'block';
-                } else {
-                    resultContainer.style.display = 'none';
-                    recordingSection.style.display = 'block';
-                }
-            }
-
-            // Safe HTML rendering - only allows <strong> tags for emphasis
-            function createSafeListItem(htmlContent) {
-                const li = document.createElement('li');
-                // Parse the content and only allow <strong> tags
-                const parts = htmlContent.split(/(<strong>|<\/strong>)/i);
-                let inStrong = false;
-                let currentSpan = null;
-
-                parts.forEach(part => {
-                    if (part.toLowerCase() === '<strong>') {
-                        inStrong = true;
-                        currentSpan = document.createElement('strong');
-                    } else if (part.toLowerCase() === '</strong>') {
-                        if (currentSpan) {
-                            li.appendChild(currentSpan);
-                            currentSpan = null;
-                        }
-                        inStrong = false;
-                    } else if (part) {
-                        // Add text content (safely escaped)
-                        const textNode = document.createTextNode(part);
-                        if (inStrong && currentSpan) {
-                            currentSpan.appendChild(textNode);
-                        } else {
-                            li.appendChild(textNode);
-                        }
-                    }
-                });
-
-                // Handle unclosed strong tag
-                if (currentSpan) {
-                    li.appendChild(currentSpan);
-                }
-
-                return li;
-            }
-            
-            // PromptRenderer - Single component parameterized by level
-            // Per CAPA 1 spec: prompts provide guidance bullets, NOT fixed scripts
-            const promptData = {
-                beginner: {
-                    level: "Beginner (Básico)",
-                    topic: "Topic: Preséntate / Introduce Yourself",
-                    instructions: "Speak about yourself in Spanish. Use simple, complete sentences in the present tense.",
-                    guidanceBullets: [
-                        "Your name and where you are from",
-                        "Your age and what you do (student, job, etc.)",
-                        "What languages you speak",
-                        "One or two hobbies or interests"
-                    ],
-                    reminder: "Speak calmly and clearly. Do not read from a written text—you may use brief notes.",
-                    duration: "Time: 15-60 seconds"
-                },
-                intermediate: {
-                    level: "Intermediate (Intermedio)",
-                    topic: "Topic: Describe tu día (ayer) / Describe Your Day (Yesterday)",
-                    instructions: "Describe what you did yesterday in Spanish. Speak in the past tense and organize your ideas in order.",
-                    guidanceBullets: [
-                        "What time you woke up and what you did in the morning",
-                        "Two or three activities you did during the day",
-                        "If you talked with or met other people",
-                        "How you felt at some point in the day"
-                    ],
-                    reminder: "Use simple connectors to organize your story (primero, después, por la tarde). Speak continuously—do not respond as a list.",
-                    duration: "Time: 20-60 seconds"
-                },
-                advanced: {
-                    level: "Advanced (Avanzado)",
-                    topic: "Topic: Tecnología y educación / Technology and Education",
-                    instructions: "Express your opinion about how technology influences education today. Speak in an organized, reflective, and personal way.",
-                    guidanceBullets: [
-                        "Something you find positive or important about technology in education",
-                        "Something that worries you, bothers you, or makes you uncertain",
-                        "A personal experience with digital platforms or tools",
-                        "An idea about what should change or improve in the future of education"
-                    ],
-                    reminder: "Try to express emotions, evaluations, or personal opinions using expressions like: me parece importante que..., me preocupa que..., es necesario que..., no creo que..., aunque..., para que... Use connectors to organize your speech (por un lado..., por otro..., sin embargo, aunque...). Speak fluently—do not memorize a text.",
-                    duration: "Time: 30-60 seconds"
-                }
-            };
-
-            // Prompt display handling
-            const promptDisplay = document.getElementById('promptDisplay');
-            const promptTopicTitle = document.getElementById('promptTopicTitle');
-            const promptInstructions = document.getElementById('promptInstructions');
-            const promptGuidanceBullets = document.getElementById('promptGuidanceBullets');
-            const promptReminder = document.getElementById('promptReminder');
-            const promptDuration = document.getElementById('promptDuration');
-            const closePromptDisplay = document.getElementById('closePromptDisplay');
-            const promptLinks = document.querySelectorAll('.prompt-link');
-
-            // Show prompt when a level is clicked
-            promptLinks.forEach(link => {
-                link.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const level = this.getAttribute('data-level');
-
-                    if (promptData[level]) {
-                        const data = promptData[level];
-
-                        // Store selected level for assessment
-                        selectedLevel = level;
-
-                        // Remove active class from all links
-                        promptLinks.forEach(l => l.classList.remove('active'));
-                        // Add active class to clicked link
-                        this.classList.add('active');
-
-                        // Set content per CAPA 1 spec
-                        promptTopicTitle.textContent = data.topic;
-                        promptInstructions.textContent = data.instructions;
-
-                        // Build guidance bullets
-                        promptGuidanceBullets.innerHTML = '';
-                        data.guidanceBullets.forEach(bullet => {
-                            const li = document.createElement('li');
-                            li.textContent = bullet;
-                            promptGuidanceBullets.appendChild(li);
-                        });
-
-                        promptReminder.textContent = data.reminder;
-                        promptDuration.innerHTML = '<strong>' + data.duration + '</strong>';
-
-                        // Show the display
-                        promptDisplay.style.display = 'block';
-
-                        // Smooth scroll to prompt section after it becomes visible
-                        setTimeout(() => {
-                            promptDisplay.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        }, 100);
-                    }
-                });
-            });
-
-            // Close prompt display
-            closePromptDisplay.addEventListener('click', function() {
-                promptDisplay.style.display = 'none';
-                // Remove active class from all links when closing
-                promptLinks.forEach(l => l.classList.remove('active'));
-            });
-
+            // =================================================================
+            // STATE MANAGEMENT
+            // =================================================================
+            let accessCode = localStorage.getItem('vowels_access_code') || '';
+            let currentExercise = new URLSearchParams(window.location.search).get('exercise') || 'L1';
+            let moduleConfig = null;
+            let studentProgress = null;
             let mediaRecorder;
             let audioChunks = [];
             let recording = false;
@@ -664,14 +521,245 @@
             let timerInterval;
             let audioURL = null;
             let selectedAudioFile = null;
-            let selectedLevel = 'intermediate'; // Track selected level (default: intermediate)
 
-            // Capture URL parameters for tracking
-            const urlParams = new URLSearchParams(window.location.search);
-            const trackingSource = urlParams.get('source') || 'direct';
-            const trackingCohort = urlParams.get('cohort') || 'none';
+            // =================================================================
+            // DOM ELEMENTS
+            // =================================================================
+            const accessCodeSection = document.getElementById('accessCodeSection');
+            const mainAppSection = document.getElementById('mainAppSection');
+            const accessCodeInput = document.getElementById('accessCodeInput');
+            const accessCodeError = document.getElementById('accessCodeError');
+            const validateCodeBtn = document.getElementById('validateCodeBtn');
 
-            // Recording
+            const progressSection = document.getElementById('progressSection');
+            const progressTableBody = document.getElementById('progressTableBody');
+
+            const recordingSection = document.getElementById('recordingSection');
+            const resultContainer = document.getElementById('resultContainer');
+
+            const exerciseName = document.getElementById('exerciseName');
+            const exercisePrompt = document.getElementById('exercisePrompt');
+            const exerciseDuration = document.getElementById('exerciseDuration');
+            const attemptStatus = document.getElementById('attemptStatus');
+
+            const recordButton = document.getElementById('recordButton');
+            const submitButton = document.getElementById('submitButton');
+            const recordingStatus = document.getElementById('recordingStatus');
+            const recordingTimer = document.getElementById('recordingTimer');
+            const audioPreview = document.getElementById('audioPreview');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+
+            const scoreFill = document.getElementById('scoreFill');
+            const transcribedText = document.getElementById('transcribedText');
+            const feedbackText = document.getElementById('feedbackText');
+            const strengthsList = document.getElementById('strengthsList');
+            const improvementsList = document.getElementById('improvementsList');
+            const ttsAudio = document.getElementById('ttsAudio');
+
+            const tryAgainButton = document.getElementById('tryAgainButton');
+            const backToProgressButton = document.getElementById('backToProgressButton');
+
+            // =================================================================
+            // INITIALIZATION
+            // =================================================================
+            async function init() {
+                if (accessCode) {
+                    // Validate stored code
+                    const isValid = await validateCode(accessCode);
+                    if (isValid) {
+                        showMainApp();
+                    } else {
+                        localStorage.removeItem('vowels_access_code');
+                        accessCode = '';
+                        showAccessCodeScreen();
+                    }
+                } else {
+                    showAccessCodeScreen();
+                }
+            }
+
+            function showAccessCodeScreen() {
+                accessCodeSection.classList.remove('hidden');
+                mainAppSection.classList.add('hidden');
+            }
+
+            async function showMainApp() {
+                accessCodeSection.classList.add('hidden');
+                mainAppSection.classList.remove('hidden');
+
+                // Load module config and progress
+                await loadModuleConfig();
+                await loadProgress();
+
+                // Setup current exercise
+                setupExercise();
+            }
+
+            // =================================================================
+            // ACCESS CODE VALIDATION
+            // =================================================================
+            async function validateCode(code) {
+                try {
+                    const response = await fetch('/api/validate-code', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ code: code })
+                    });
+                    const data = await response.json();
+                    return data.valid;
+                } catch (error) {
+                    console.error('Code validation error:', error);
+                    // Allow offline access if previously validated
+                    return accessCode === code;
+                }
+            }
+
+            validateCodeBtn.addEventListener('click', async function() {
+                const code = accessCodeInput.value.trim().toUpperCase();
+                if (!code) {
+                    showCodeError('Please enter your access code.');
+                    return;
+                }
+
+                validateCodeBtn.disabled = true;
+                validateCodeBtn.textContent = 'Validating...';
+
+                const isValid = await validateCode(code);
+
+                if (isValid) {
+                    accessCode = code;
+                    localStorage.setItem('vowels_access_code', code);
+                    showMainApp();
+                } else {
+                    showCodeError('Invalid access code. Please check and try again.');
+                }
+
+                validateCodeBtn.disabled = false;
+                validateCodeBtn.textContent = 'Start Learning';
+            });
+
+            accessCodeInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    validateCodeBtn.click();
+                }
+            });
+
+            function showCodeError(message) {
+                accessCodeError.textContent = message;
+                accessCodeError.style.display = 'block';
+            }
+
+            // =================================================================
+            // MODULE CONFIG & PROGRESS
+            // =================================================================
+            async function loadModuleConfig() {
+                try {
+                    const response = await fetch('/api/module-config');
+                    moduleConfig = await response.json();
+                } catch (error) {
+                    console.error('Failed to load module config:', error);
+                    moduleConfig = { module: {}, exercises: {}, settings: {} };
+                }
+            }
+
+            async function loadProgress() {
+                try {
+                    const response = await fetch('/api/progress', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ code: accessCode })
+                    });
+                    studentProgress = await response.json();
+                    renderProgressTable();
+                } catch (error) {
+                    console.error('Failed to load progress:', error);
+                    studentProgress = { submissions: [] };
+                }
+            }
+
+            function renderProgressTable() {
+                const exercises = moduleConfig?.exercises || {};
+                const submissions = studentProgress?.submissions || [];
+
+                let html = '';
+                for (const [id, exercise] of Object.entries(exercises)) {
+                    const exerciseSubmissions = submissions.filter(s => s.exercise === id);
+                    const attempt1 = exerciseSubmissions.find(s => s.attempt === 1);
+                    const attempt2 = exerciseSubmissions.find(s => s.attempt === 2);
+
+                    const isCurrentExercise = id === currentExercise;
+                    const rowClass = isCurrentExercise ? 'current-exercise' : '';
+
+                    let improvement = '';
+                    if (attempt1 && attempt2) {
+                        const diff = attempt2.score - attempt1.score;
+                        if (diff > 0) {
+                            improvement = `<span class="improvement-badge">+${diff.toFixed(0)}</span>`;
+                        }
+                    }
+
+                    html += `
+                        <tr class="${rowClass}">
+                            <td style="text-align: left;">
+                                <strong>${exercise.name}</strong><br>
+                                <small class="text-muted">${exercise.lesson}</small>
+                            </td>
+                            <td class="score ${attempt1 ? 'completed' : 'pending'}">
+                                ${attempt1 ? Math.round(attempt1.score) + '%' : '—'}
+                            </td>
+                            <td class="score ${attempt2 ? 'completed' : 'pending'}">
+                                ${attempt2 ? Math.round(attempt2.score) + '%' : '—'}
+                                ${improvement}
+                            </td>
+                        </tr>
+                    `;
+                }
+
+                progressTableBody.innerHTML = html;
+            }
+
+            // =================================================================
+            // EXERCISE SETUP
+            // =================================================================
+            function setupExercise() {
+                const exercise = moduleConfig?.exercises?.[currentExercise];
+                if (!exercise) {
+                    exerciseName.textContent = 'Exercise not found';
+                    exercisePrompt.textContent = 'Please check the URL and try again.';
+                    recordButton.disabled = true;
+                    return;
+                }
+
+                exerciseName.textContent = exercise.name;
+                exercisePrompt.textContent = exercise.prompt;
+                exerciseDuration.textContent = exercise.duration;
+
+                // Check attempts
+                const submissions = studentProgress?.submissions || [];
+                const exerciseSubmissions = submissions.filter(s => s.exercise === currentExercise);
+                const attemptCount = exerciseSubmissions.length;
+                const maxAttempts = exercise.max_attempts || 2;
+                const remainingAttempts = maxAttempts - attemptCount;
+
+                if (remainingAttempts <= 0) {
+                    attemptStatus.textContent = `All ${maxAttempts} attempts used`;
+                    attemptStatus.className = 'attempt-status exhausted';
+                    recordButton.disabled = true;
+                    recordButton.textContent = 'No attempts remaining';
+                } else if (remainingAttempts === 1) {
+                    attemptStatus.textContent = `Attempt ${attemptCount + 1} of ${maxAttempts} (last chance!)`;
+                    attemptStatus.className = 'attempt-status warning';
+                    recordButton.disabled = false;
+                } else {
+                    attemptStatus.textContent = `Attempt ${attemptCount + 1} of ${maxAttempts}`;
+                    attemptStatus.className = 'attempt-status';
+                    recordButton.disabled = false;
+                }
+            }
+
+            // =================================================================
+            // RECORDING FUNCTIONALITY
+            // =================================================================
             recordButton.addEventListener('click', () => {
                 if (!recording) {
                     startRecording();
@@ -679,7 +767,7 @@
                     stopRecording();
                 }
             });
-            
+
             async function startRecording() {
                 try {
                     recordingStatus.textContent = '';
@@ -687,7 +775,6 @@
                     submitButton.disabled = true;
                     selectedAudioFile = null;
 
-                    // iOS-compatible audio constraints
                     const audioConstraints = {
                         audio: {
                             channelCount: 1,
@@ -700,7 +787,6 @@
 
                     const stream = await navigator.mediaDevices.getUserMedia(audioConstraints);
 
-                    // Detect supported MIME type for iOS compatibility
                     let mimeType = 'audio/webm';
                     let fileExtension = 'webm';
 
@@ -715,12 +801,9 @@
                         fileExtension = 'wav';
                     }
 
-                    // Create MediaRecorder with detected MIME type and explicit bitrate
-                    // Use 32 kbps bitrate to ensure predictable file sizes and compatibility
-                    // with inline transcription (keeps 60s recordings under 240 KB)
                     const recorderOptions = {
                         mimeType: mimeType,
-                        audioBitsPerSecond: 32000  // 32 kbps for speech
+                        audioBitsPerSecond: 32000
                     };
 
                     mediaRecorder = new MediaRecorder(stream, recorderOptions);
@@ -741,48 +824,34 @@
                         }
                         audioURL = URL.createObjectURL(audioBlob);
 
-                        // Detect iOS devices
                         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
                         if (isIOS) {
-                            // On iOS, show success message instead of audio player
                             audioPreview.innerHTML = `
                                 <div class="alert alert-success">
-                                    <i class="bi bi-check-circle"></i> Recording saved successfully!
+                                    <i class="bi bi-check-circle"></i> Recording saved!
                                     <br>File size: ${(audioBlob.size / 1024).toFixed(2)} KB
-                                    <br>Analyzing pronunciation...
                                 </div>
                             `;
-                            audioPreview.style.display = 'block';
                         } else {
-                            // On desktop, show audio preview as normal
                             audioPreview.innerHTML = `
                                 <h6>Preview:</h6>
                                 <audio id="recordedAudio" controls class="w-100"></audio>
                             `;
                             const audioElement = audioPreview.querySelector('#recordedAudio');
                             audioElement.src = audioURL;
-                            audioPreview.style.display = 'block';
                         }
-
+                        audioPreview.style.display = 'block';
                         submitButton.disabled = false;
-
-                        // Auto-trigger analysis after recording stops
-                        setTimeout(() => {
-                            submitButton.click();
-                        }, 500);
                     });
 
-                    // Use timeslice for iOS compatibility
                     mediaRecorder.start(1000);
                     recording = true;
 
-                    // Reset record button
                     recordButton.innerHTML = '<i class="bi bi-stop-fill"></i> Stop Recording';
                     recordButton.classList.add('recording');
 
                     recordingStatus.textContent = 'Recording...';
-                    audioPreview.style.display = 'none';
                     recordingTime = 0;
                     recordingTimer.style.display = 'block';
                     timerInterval = setInterval(updateTimer, 1000);
@@ -799,23 +868,22 @@
                     recordingStatus.textContent = 'Error accessing microphone. Check permissions.';
                 }
             }
-            
+
             function stopRecording() {
                 if (mediaRecorder && recording) {
                     mediaRecorder.stop();
                     mediaRecorder.stream.getTracks().forEach(track => track.stop());
                     recording = false;
-                    
-                    // Reset record button
+
                     recordButton.innerHTML = '<i class="bi bi-mic"></i> Start Recording';
                     recordButton.classList.remove('recording');
-                    
+
                     recordingStatus.textContent = 'Recording stopped.';
                     clearInterval(timerInterval);
                     recordingTimer.style.display = 'none';
                 }
             }
-            
+
             function updateTimer() {
                 recordingTime++;
                 const minutes = Math.floor(recordingTime / 60).toString().padStart(2, '0');
@@ -823,131 +891,138 @@
                 recordingTimer.textContent = `${minutes}:${seconds}`;
             }
 
-            // Submit
-            submitButton.addEventListener('click', () => {
+            // =================================================================
+            // SUBMIT & RESULTS
+            // =================================================================
+            submitButton.addEventListener('click', async () => {
                 if (!selectedAudioFile) {
-                    alert('Please record an audio first.');
+                    alert('Please record audio first.');
                     return;
                 }
 
-                // Validate minimum audio length (roughly 10 seconds at 32 kbps = ~40KB)
+                // Validate minimum length
                 const minSizeBytes = 40 * 1024;
                 if (selectedAudioFile.size < minSizeBytes) {
-                    alert('Please record at least 15 seconds of audio for accurate assessment.');
-                    return;
-                }
-
-                // Validate maximum audio file size (10MB limit for API)
-                const maxSizeBytes = 10 * 1024 * 1024;
-                if (selectedAudioFile.size > maxSizeBytes) {
-                    alert('Audio file is too large. Please record a shorter sample (under 90 seconds).');
+                    alert('Please record at least 15 seconds of audio.');
                     return;
                 }
 
                 loadingIndicator.style.display = 'block';
+                submitButton.disabled = true;
 
                 const formData = new FormData();
                 formData.append('file', selectedAudioFile);
-                formData.append('level', selectedLevel); // Send selected level to backend
-                formData.append('source', trackingSource); // Send tracking source
-                formData.append('cohort', trackingCohort); // Send tracking cohort
+                formData.append('access_code', accessCode);
+                formData.append('exercise', currentExercise);
+                formData.append('level', 'beginner'); // Vowels course targets beginners
+                formData.append('source', 'vowels-module1');
 
-                fetch('/process-audio', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => {
-                    // Check for HTTP errors before parsing JSON
-                    if (!response.ok) {
-                        throw new Error(`Server error: ${response.status} ${response.statusText}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
+                try {
+                    const response = await fetch('/process-audio', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await response.json();
                     loadingIndicator.style.display = 'none';
+
                     if (data.error) {
-                        // Reset UI state to allow retry
-                        submitButton.disabled = false;
                         alert('Error: ' + data.error);
+                        submitButton.disabled = false;
                         return;
                     }
 
-                    // The profile description is already included in the feedback text from backend
-                    // No need to display it separately - the backend now sends the correct profile-based feedback
-                    profileDescription.textContent = '';
+                    // Show results
+                    showResults(data);
 
-                    scoreFill.style.width = data.score + '%';
-                    scoreFill.textContent = 'Estimated Clarity: ' + Math.round(data.score) + '%';
-
-                    // Show transcription
-                    transcribedText.textContent = data.transcribed_text;
-
-                    // Set feedback text
-                    feedbackText.textContent = data.feedback;
-
-                    // TTS feedback audio
-                    if (data.tts_audio_url) {
-                        ttsAudio.src = data.tts_audio_url;
-                    }
-
-                    // Strengths
-                    strengthsList.innerHTML = '';
-                    data.strengths.forEach(strength => {
-                        const li = document.createElement('li');
-                        li.textContent = strength;
-                        strengthsList.appendChild(li);
-                    });
-
-                    // Areas for improvement - use safe HTML rendering
-                    improvementsList.innerHTML = '';
-                    data.areas_for_improvement.forEach(area => {
-                        const li = createSafeListItem(area);
-                        improvementsList.appendChild(li);
-                    });
-
-                    // Switch to results view with transition
-                    switchToView('results');
-
-                    // Smooth scroll to results section after it becomes visible
-                    setTimeout(() => {
-                        resultContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }, 100);
-
-                    // Disable Start Recording button until Start New Assessment is clicked
-                    recordButton.disabled = true;
-                })
-                .catch(error => {
+                } catch (error) {
                     loadingIndicator.style.display = 'none';
-                    // Reset UI state to allow retry
                     submitButton.disabled = false;
-                    console.error('Audio processing error:', error);
-
-                    // Provide user-friendly error message
-                    let userMessage = 'An error occurred while processing your audio. ';
-                    if (error.message.includes('Server error')) {
-                        userMessage += 'The server encountered a problem. Please try again in a moment.';
-                    } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-                        userMessage += 'Please check your internet connection and try again.';
-                    } else {
-                        userMessage += 'Please try recording again.';
-                    }
-                    alert(userMessage);
-                });
+                    alert('An error occurred. Please try again.');
+                    console.error('Submission error:', error);
+                }
             });
 
-            // New recording - switch back to record view
-            newRecordingButton.addEventListener('click', () => {
-                switchToView('record');
+            function showResults(data) {
+                scoreFill.style.width = data.score + '%';
+                scoreFill.textContent = 'Score: ' + Math.round(data.score) + '%';
+
+                transcribedText.textContent = data.transcribed_text;
+                feedbackText.textContent = data.feedback;
+
+                if (data.tts_audio_url) {
+                    ttsAudio.src = data.tts_audio_url;
+                }
+
+                strengthsList.innerHTML = '';
+                data.strengths.forEach(s => {
+                    const li = document.createElement('li');
+                    li.textContent = s;
+                    strengthsList.appendChild(li);
+                });
+
+                improvementsList.innerHTML = '';
+                data.areas_for_improvement.forEach(area => {
+                    const li = document.createElement('li');
+                    li.innerHTML = area.replace(/<strong>/g, '<strong>').replace(/<\/strong>/g, '</strong>');
+                    improvementsList.appendChild(li);
+                });
+
+                // Check if another attempt is available
+                const exercise = moduleConfig?.exercises?.[currentExercise];
+                const maxAttempts = exercise?.max_attempts || 2;
+                const currentAttempt = data.attempt || 1;
+
+                if (currentAttempt < maxAttempts) {
+                    tryAgainButton.style.display = 'block';
+                    tryAgainButton.textContent = `Try Again (Attempt ${currentAttempt + 1})`;
+                } else {
+                    tryAgainButton.style.display = 'none';
+                }
+
+                // Switch views
+                recordingSection.style.display = 'none';
+                progressSection.style.display = 'none';
+                resultContainer.style.display = 'block';
+
+                // Reload progress in background
+                loadProgress();
+            }
+
+            tryAgainButton.addEventListener('click', () => {
+                resultContainer.style.display = 'none';
+                progressSection.style.display = 'block';
+                recordingSection.style.display = 'block';
+
+                // Reset recording state
                 audioPreview.style.display = 'none';
                 recordingStatus.textContent = '';
                 submitButton.disabled = true;
-                recordButton.disabled = false;  // Re-enable Start Recording button
                 selectedAudioFile = null;
-                if (audioURL) {
-                    URL.revokeObjectURL(audioURL);
-                    audioURL = null;
-                }
+
+                // Refresh exercise setup
+                setupExercise();
             });
+
+            backToProgressButton.addEventListener('click', () => {
+                resultContainer.style.display = 'none';
+                progressSection.style.display = 'block';
+                recordingSection.style.display = 'block';
+
+                // Reset for potential new recording
+                audioPreview.style.display = 'none';
+                recordingStatus.textContent = '';
+                submitButton.disabled = true;
+                selectedAudioFile = null;
+
+                // Refresh exercise setup
+                setupExercise();
+            });
+
+            // =================================================================
+            // INITIALIZE APP
+            // =================================================================
+            init();
         });
     </script>
 </body>

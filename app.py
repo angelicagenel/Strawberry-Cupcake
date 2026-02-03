@@ -150,6 +150,84 @@ def load_references():
 # Initialize references
 REFERENCES = load_references()
 
+# Load module configuration for exercise-based tracking
+def load_module_config():
+    """Load module and exercise configuration"""
+    try:
+        with open("modules.json", "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        logger.warning("modules.json not found, using defaults")
+        return {
+            "module": {"id": "default", "name": "FACT Assessment"},
+            "exercises": {},
+            "settings": {"require_access_code": False, "total_attempts_per_code": 100}
+        }
+    except Exception as e:
+        logger.error(f"Error loading module config: {e}")
+        return {"module": {}, "exercises": {}, "settings": {}}
+
+MODULE_CONFIG = load_module_config()
+
+# Google Sheets API URL (Apps Script web app for code validation and progress tracking)
+SHEETS_API_URL = os.environ.get('SHEETS_API_URL', '')
+
+def validate_access_code(code):
+    """Validate access code against Google Sheets via Apps Script"""
+    if not SHEETS_API_URL:
+        logger.warning("SHEETS_API_URL not configured, allowing all codes")
+        return {"valid": True, "message": "Code validation disabled"}
+
+    try:
+        response = requests.get(
+            f"{SHEETS_API_URL}?action=validate&code={code}",
+            timeout=5
+        )
+        if response.status_code == 200:
+            return response.json()
+        else:
+            logger.error(f"Code validation failed: {response.status_code}")
+            return {"valid": False, "message": "Validation service unavailable"}
+    except Exception as e:
+        logger.error(f"Error validating code: {e}")
+        return {"valid": False, "message": "Validation service error"}
+
+def get_student_progress(code):
+    """Get student's submission history from Google Sheets"""
+    if not SHEETS_API_URL:
+        return {"submissions": [], "message": "Progress tracking not configured"}
+
+    try:
+        response = requests.get(
+            f"{SHEETS_API_URL}?action=progress&code={code}",
+            timeout=5
+        )
+        if response.status_code == 200:
+            return response.json()
+        else:
+            return {"submissions": [], "message": "Could not fetch progress"}
+    except Exception as e:
+        logger.error(f"Error fetching progress: {e}")
+        return {"submissions": [], "message": "Progress service error"}
+
+def get_attempt_count(code, exercise):
+    """Get number of attempts for a specific exercise"""
+    if not SHEETS_API_URL:
+        return {"count": 0, "max": 2}
+
+    try:
+        response = requests.get(
+            f"{SHEETS_API_URL}?action=attempts&code={code}&exercise={exercise}",
+            timeout=5
+        )
+        if response.status_code == 200:
+            return response.json()
+        else:
+            return {"count": 0, "max": 2}
+    except Exception as e:
+        logger.error(f"Error checking attempts: {e}")
+        return {"count": 0, "max": 2}
+
 def transcribe_audio(audio_content):
     """Transcribe Spanish audio using Google Cloud Speech-to-Text with support for up to 2 minutes
 
@@ -1962,6 +2040,69 @@ def health():
         "bucket_name": BUCKET_NAME
     })
 
+# =============================================================================
+# ACCESS CODE AND PROGRESS TRACKING ENDPOINTS
+# =============================================================================
+
+@app.route('/api/validate-code', methods=['POST'])
+def api_validate_code():
+    """Validate an access code"""
+    data = request.get_json()
+    code = data.get('code', '').strip().upper()
+
+    if not code:
+        return jsonify({"valid": False, "message": "No code provided"}), 400
+
+    result = validate_access_code(code)
+    return jsonify(result)
+
+@app.route('/api/progress', methods=['POST'])
+def api_get_progress():
+    """Get student's progress for all exercises"""
+    data = request.get_json()
+    code = data.get('code', '').strip().upper()
+
+    if not code:
+        return jsonify({"error": "No code provided"}), 400
+
+    progress = get_student_progress(code)
+
+    # Add module and exercise info for the frontend
+    progress['module'] = MODULE_CONFIG.get('module', {})
+    progress['exercises'] = MODULE_CONFIG.get('exercises', {})
+
+    return jsonify(progress)
+
+@app.route('/api/check-attempts', methods=['POST'])
+def api_check_attempts():
+    """Check how many attempts remain for an exercise"""
+    data = request.get_json()
+    code = data.get('code', '').strip().upper()
+    exercise = data.get('exercise', '')
+
+    if not code or not exercise:
+        return jsonify({"error": "Code and exercise required"}), 400
+
+    # Get exercise config for max attempts
+    exercise_config = MODULE_CONFIG.get('exercises', {}).get(exercise, {})
+    max_attempts = exercise_config.get('max_attempts', 2)
+
+    attempt_data = get_attempt_count(code, exercise)
+    attempt_data['max'] = max_attempts
+    attempt_data['remaining'] = max(0, max_attempts - attempt_data.get('count', 0))
+    attempt_data['can_record'] = attempt_data['remaining'] > 0
+
+    return jsonify(attempt_data)
+
+@app.route('/api/module-config')
+def api_module_config():
+    """Get module configuration for frontend"""
+    return jsonify({
+        "module": MODULE_CONFIG.get('module', {}),
+        "exercises": MODULE_CONFIG.get('exercises', {}),
+        "settings": MODULE_CONFIG.get('settings', {})
+    })
+
 @app.route('/process-audio', methods=['POST'])
 def process_audio():
     """Process uploaded or recorded audio and provide assessment"""
@@ -1970,16 +2111,55 @@ def process_audio():
         if 'file' not in request.files:
             logger.error("No file in request")
             return jsonify({"error": "No audio file in the request"}), 400
-        
+
         file = request.files['file']
         if file.filename == '':
             logger.error("Empty filename in request")
             return jsonify({"error": "No selected file"}), 400
-        
+
         if not allowed_file(file.filename):
             logger.error(f"Invalid file type: {file.filename}")
             return jsonify({"error": "Invalid file type. Please upload .wav, .mp3, .m4a, .opus, .webm, or .ogg"}), 400
-        
+
+        # =================================================================
+        # ACCESS CODE AND EXERCISE VALIDATION (Module 1 Vowels)
+        # =================================================================
+        access_code = request.form.get('access_code', '').strip().upper()
+        exercise_id = request.form.get('exercise', '')
+
+        # Check if access code is required
+        settings = MODULE_CONFIG.get('settings', {})
+        if settings.get('require_access_code', False) and SHEETS_API_URL:
+            if not access_code:
+                return jsonify({"error": "Access code required. Please enter your course access code."}), 403
+
+            # Validate access code
+            code_validation = validate_access_code(access_code)
+            if not code_validation.get('valid', False):
+                return jsonify({"error": "Invalid access code. Please check your code and try again."}), 403
+
+            # Check attempt limit for this exercise
+            if exercise_id:
+                attempt_data = get_attempt_count(access_code, exercise_id)
+                exercise_config = MODULE_CONFIG.get('exercises', {}).get(exercise_id, {})
+                max_attempts = exercise_config.get('max_attempts', 2)
+
+                if attempt_data.get('count', 0) >= max_attempts:
+                    return jsonify({
+                        "error": f"You have used all {max_attempts} attempts for this exercise.",
+                        "attempts_used": attempt_data.get('count', 0),
+                        "max_attempts": max_attempts
+                    }), 403
+
+        # Get exercise-specific configuration for feedback focus
+        exercise_config = MODULE_CONFIG.get('exercises', {}).get(exercise_id, {})
+        feedback_emphasis = exercise_config.get('feedback_emphasis', '')
+        module_feedback_focus = MODULE_CONFIG.get('module', {}).get('feedback_focus', '')
+
+        # =================================================================
+        # END ACCESS CODE VALIDATION
+        # =================================================================
+
         # Check if this is a practice mode assessment
         practice_level = request.form.get('practice_level', None)
 
@@ -2055,8 +2235,10 @@ def process_audio():
             response["reference_text"] = assessment['reference_text']
             response["reference_similarity"] = assessment.get('reference_similarity')
 
-        # Send tracking data to Google Sheets webhook (non-blocking)
-        if TRACKING_WEBHOOK_URL:
+        # Send tracking data to Google Sheets (non-blocking)
+        # Use SHEETS_API_URL for enhanced tracking, fall back to TRACKING_WEBHOOK_URL
+        tracking_url = SHEETS_API_URL or TRACKING_WEBHOOK_URL
+        if tracking_url:
             try:
                 # Calculate recording duration from transcription timing
                 words_data = transcription_data.get('words', [])
@@ -2064,18 +2246,34 @@ def process_audio():
                 if words_data and len(words_data) > 0:
                     duration_seconds = round(words_data[-1]['end_time'] - words_data[0]['start_time'], 1)
 
-                # Prepare tracking data
+                # Get current attempt number for this exercise
+                current_attempt = 1
+                if access_code and exercise_id and SHEETS_API_URL:
+                    attempt_data = get_attempt_count(access_code, exercise_id)
+                    current_attempt = attempt_data.get('count', 0) + 1
+
+                # Prepare enhanced tracking data
                 tracking_data = {
+                    'action': 'submit',  # For Apps Script routing
                     'timestamp': datetime.datetime.now().isoformat(),
+                    'access_code': access_code,
+                    'exercise': exercise_id,
+                    'attempt': current_attempt,
                     'source': tracking_source,
                     'cohort': tracking_cohort,
                     'duration_seconds': duration_seconds,
-                    'score': round(assessment['score'], 2)
+                    'score': round(assessment['score'], 2),
+                    'transcript': spoken_text[:500] if spoken_text else ''  # First 500 chars
                 }
 
                 # Send to webhook (with short timeout to avoid blocking user response)
-                requests.post(TRACKING_WEBHOOK_URL, json=tracking_data, timeout=3)
-                logger.info(f"Tracking data sent: source={tracking_source}, cohort={tracking_cohort}, duration={duration_seconds}s, score={assessment['score']}")
+                requests.post(tracking_url, json=tracking_data, timeout=5)
+                logger.info(f"Tracking data sent: code={access_code}, exercise={exercise_id}, attempt={current_attempt}, score={assessment['score']}")
+
+                # Add attempt info to response for frontend
+                response['attempt'] = current_attempt
+                response['exercise'] = exercise_id
+
             except Exception as e:
                 # Log error but don't fail the request if tracking fails
                 logger.error(f"Failed to send tracking data to webhook: {str(e)}")
