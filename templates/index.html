@@ -787,13 +787,13 @@
                     recordingTimer.style.display = 'block';
                     timerInterval = setInterval(updateTimer, 1000);
 
-                    // 90 second limit
+                    // 3 minute limit
                     setTimeout(() => {
                         if (recording) {
                             stopRecording();
-                            recordingStatus.textContent = '90-second limit reached.';
+                            recordingStatus.textContent = '3-minute limit reached.';
                         }
-                    }, 90 * 1000);
+                    }, 180 * 1000);
                 } catch (err) {
                     console.error('Microphone error:', err);
                     recordingStatus.textContent = 'Error accessing microphone. Check permissions.';
@@ -840,7 +840,7 @@
                 // Validate maximum audio file size (10MB limit for API)
                 const maxSizeBytes = 10 * 1024 * 1024;
                 if (selectedAudioFile.size > maxSizeBytes) {
-                    alert('Audio file is too large. Please record a shorter sample (under 90 seconds).');
+                    alert('Audio file is too large. Please record a shorter sample (under 3 minutes).');
                     return;
                 }
 
